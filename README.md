@@ -1,0 +1,2 @@
+# camera_to_lidar_autoCalib
+用于相机到雷达(sensor_kit_base_link)的全自动标定
