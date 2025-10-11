@@ -1,0 +1,97 @@
+image_width: 1920
+image_height: 1080
+camera_name: camera2
+camera_matrix:
+  rows: 3
+  cols: 3
+  data:
+  - 1016.1500423908
+  - 0.0
+  - 960.2052000221
+  - 0.0
+  - 1015.8391983297
+  - 542.0996093486
+  - 0.0
+  - 0.0
+  - 1.0
+distortion_model: plumb_bob
+distortion_coefficients:
+  rows: 1
+  cols: 8
+  data:
+  - 0.9175613186
+  - 0.2034121149
+  - 4.2127e-05
+  - -1.27827e-05
+  - 0.0074622138
+  - 1.3146081006
+  - 0.4680563417
+  - 0.0454971378
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data:
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+projection_matrix:
+  rows: 3
+  cols: 4
+  data:
+  - 1016.1500423908
+  - 0.0
+  - 960.2052000221
+  - 0.0
+  - 0.0
+  - 1015.8391983297
+  - 542.0996093486
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  - 0.0
+CameraInfo:
+  sensor_id: AR0233
+  isp_id: GW5200
+  resolution_width: 1920
+  resolution_height: 1080
+  fps: 30
+  image_format: UYVY
+  trigger_mode: TriggerEnable
+  embedded_data: EmbeddedDisable
+  CRC32_1:
+  - 2129337062
+  - 2129337062
+  - true
+LensInfo:
+  field_of_view: 120
+  focal_length: 3.0399999618530273
+  f_number: 2.0
+  manufacturer_id: 85
+  lens_index: 0
+  lens_type: "AA\u955C\u5934"
+  CRC32_1:
+  - 473700164
+  - 473700164
+  - true
+SN:
+  SN: H120UA-H06170700
+  CRC32_1:
+  - 1601538499
+  - 1942964034
+  - false
+SerialNumber:
+  year: 255
+  month: 255
+  day: 255
+  serial: 4294967295
+  CRC32_1:
+  - 4294967295
+  - 2162369309
+  - false

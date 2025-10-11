@@ -1,0 +1,21 @@
+image_width: 1440
+image_height: 1080
+camera_name: camera_front_3mm
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [4092.10545, 0.0, 934.80238, 0.0, 11910.30872, 514.02506, 0.0, 0.0, 1.0]
+distortion_model: plumb_bob
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data: [-4.48453, 20.55692, -0.0164, 0.08781, 0.0]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [3068.70593, 0.0, 1047.80664, 0.0, 0.0, 11806.84664, 512.29499, 0.0, 0.0,
+    0.0, 1.0, 0.0]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]

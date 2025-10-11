@@ -1,0 +1,55 @@
+# CalibBoard配置文件
+calib_board_node:
+  ros__parameters:
+    # 点云文件路径
+    data_path: "/home/pix/code/calibration_ws/src/calibBoard/data"
+    
+    # 模板图像文件路径
+    template_image_path: "/home/pix/code/calibration_ws/src/calibBoard/data/template.png"
+
+    # 缓存文件路径
+    cache_directory: "/home/pix/code/calibration_ws/src/calibBoard/cache"
+
+    # 外参文件路径
+    parameters_path: "/home/pix/code/calibration_ws/src/calibBoard/config"
+
+    # 发布频率 (Hz)
+    publish_frequency: 1.0
+    
+    # 点云话题名称
+    pointcloud_topic: "pointcloud_board"
+    pointcloud_target_topic: "pointcloud_target"
+
+    # BBox话题名称
+    bbox_topic: "bbox_array"
+    
+    # 坐标系名称
+    frame_id: "base_link"
+
+    # 待标定相机ID列表
+    calib_camera_list: [0, 5]
+
+    # 是否输出用于yolo训练的图像素材
+    export_yolo_data: 1
+
+    # 算法参数
+    algorithm_params:
+      # 点云过滤范围
+      min_point: [-10.0, -100.0, -40.0, 1.0]  # [x, y, z, w]
+      max_point: [25.0, 100.0, 40.0, 1.0]   # [x, y, z, w]
+      
+      # 尺寸限制参数
+      min_size: 0.85     # 最小尺寸（米）
+      max_size: 1.5     # 最大尺寸（米）
+      
+      # 长宽比阈值
+      aspect_ratio_threshold: 1.0  # 长宽比阈值
+
+    # ArUco标记参数
+    aruco_params:
+      marker_length: 0.51  # 单个Aruco标记的边长（米）
+      marker_scale: 2.2     # 外围框放大比例
+      marker_shift: 0.2     # 外围框平移比例
+      marker_num: 6
+      marker_order: [1, 2, 5, 4, 3, 6]  # ArUco标记顺序
+

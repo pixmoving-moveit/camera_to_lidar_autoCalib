@@ -1,0 +1,15 @@
+
+camera_name: "camera0"
+device_name: "/dev/video0"
+framerate: 30.0
+frame_id: "camera0/camera_link/cali"
+pixel_format: "uyvy"  
+image_width: 1920
+image_height: 1080
+camera_info_url: file://${ROS_HOME}/../pix/parameter/sensor_kit/robobus_sensor_kit_description/intrinsic_parameters/camera0_params.yaml
+
+image_preprocess_run: true   # 是否镜像图像预处理
+video_encode_run: false      # 是否视频压缩
+rectify: true
+resize: 1     
+# 不管是否去畸变和resize，都要颜色空间转换bgr
