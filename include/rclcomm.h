@@ -16,6 +16,7 @@
 #include "calibrate.h"
 #include "detaruco.h"
 #include "cornersmatch.h"
+#include "spd_log.h"
 #include <thread>
 #include <atomic>
 #include <yaml-cpp/yaml.h>
@@ -40,6 +41,12 @@ public:
 
     // 启动节点
     void start();
+    SPD_LOG *logger_;
+
+    std::string data_path_;
+    std::string template_image_path_;
+    std::string parameters_path_;
+    std::string cache_directory_;
 
 private:
     // 点云发布器
@@ -92,15 +99,11 @@ private:
     BoardInfo board_info;
     
     // 参数变量
-    std::string data_path_;
-    std::string template_image_path_;
-    std::string parameters_path_;
     double publish_frequency_;
     std::string pointcloud_topic_;
     std::string pointcloud_target_topic_;
     std::string bbox_topic_;
     std::string frame_id_;
-    std::string cache_directory_;
     // 算法参数
     AlgorithmParams algorithm_params_;
     // ArUco参数

@@ -284,7 +284,7 @@ def main():
     # 构建文件路径
     extrinsic_file = os.path.join(project_root, 'config', 'extrinsic_parameters', 'sensor_kit_calibration.yaml')
     intrinsic_file = os.path.join(project_root, 'config', 'intrinsic_parameters', f'camera{camera_id}_params.yaml')
-    pcd_file = os.path.join(project_root, 'data', 'first_frame.pcd')
+    pcd_file = os.path.join(project_root, 'data', 'first_frame_raw.pcd')
     # pcd_file = os.path.join(project_root, 'cache', 'processed_cloud.pcd')
     image_file = os.path.join(project_root, 'data', camera_folder, 'image_undistort.png')
     
@@ -311,6 +311,7 @@ def main():
         # 读取点云数据
         print("读取点云数据...")
         pcd_points, pcd_intensity = read_pcd_xyz_intensity(pcd_file)
+        # pcd_points, pcd_intensity = read_pcd_xyz_intensity("/home/pix/code/slam/first_frame.pcd")
         print(f"读取到 {len(pcd_points)} 个点")
         
         # 读取图像

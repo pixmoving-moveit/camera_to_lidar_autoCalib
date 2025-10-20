@@ -50,7 +50,7 @@ typedef struct _DL_INIT_PARAM
     MODEL_TYPE modelType = YOLO_DETECT_V8;
     std::vector<int> imgSize = { 640, 640 };
     float rectConfidenceThreshold = 0.6;
-    float iouThreshold = 0.5;
+    float iouThreshold = 0.00001;
     int	keyPointsNum = 2;//Note:kpt number for pose
     bool cudaEnable = false;
     int logSeverityLevel = 3;
@@ -121,6 +121,7 @@ public:
     std::map<int, std::string> cam_id_name_map_;
 
     std::unique_ptr<YOLO_V8> yoloDetector;
+    void keepTop3ByScore(std::vector<DL_RESULT>& result);
 
 private:
     /* data */

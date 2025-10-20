@@ -74,7 +74,7 @@ class TF2Listener(Node):
 def main():
     rclpy.init()
     parent_frame = 'base_link'  # 修改为你的父坐标系
-    child_frame = 'lidar_ft_base_link'  # 修改为你的子坐标系
+    child_frame = 'lidar_fr_base_link'  # 修改为你的子坐标系
     node = TF2Listener(parent_frame, child_frame)
     try:
         rclpy.spin(node)

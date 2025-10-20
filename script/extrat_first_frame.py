@@ -18,14 +18,19 @@ import os
 import math
 from pathlib import Path
 
+test = True
+
 # ---------- 参数区 ----------
 # 1. 话题名 -> frame_id 映射
 TOPIC_MAP = {
-    "/sensing/lidar/corrected/front_top/points": "lidar_ft_base_link",
-    "/sensing/lidar/corrected/front_right/points": "lidar_fr_base_link",
+    # "/sensing/lidar/corrected/front_top/points": "lidar_ft_base_link",
+    # "/sensing/lidar/corrected/front_right/points": "lidar_fr_base_link",
+    "/sensing/lidar/front_top/points": "lidar_ft_base_link",
+    "/sensing/lidar/front_right/points": "lidar_fr_base_link",
+    "/sensing/lidar/front_left/points": "lidar_fl_base_link",
 }
 TARGET_FRAME = "sensor_kit_base_link"      # 要变换到的目标坐标系
-OUTPUT_PCD   = "../data/first_frame.pcd"     # 保存文件名
+OUTPUT_PCD   = "/home/pix/code/calibration_ws/src/calibBoard/data/first_frame_raw.pcd"     # 保存文件名
 # ----------------------------
 
 

@@ -5,6 +5,7 @@
 #include <pcl/point_cloud.h>
 #include <vector>
 #include <iostream>
+#include "spd_log.h"
 
 using PointT = pcl::PointXYZI;
 using PointCloudT = pcl::PointCloud<PointT>;

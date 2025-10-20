@@ -20,11 +20,13 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <opencv2/opencv.hpp>
+#include <pcl/common/common.h>
 #include <string>
 #include <memory>
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <cmath>
 #include "base_struct.h"
 
 struct BBox
@@ -156,6 +158,9 @@ private:
                          const Eigen::Vector4f& min_point, const Eigen::Vector4f& max_point);
     bool apply_outlier_removal(const PointCloudT::Ptr& input_cloud, PointCloudT::Ptr& output_cloud,
                               int mean_k = 10, double std_dev_mul_thresh = 1.5);
+    
+    bool apply_scaffold_filter(const std::vector<PointCloudT::Ptr>& input_cloud, std::vector<PointCloudT::Ptr>& output_cloud);
+
     bool apply_euclidean_clustering(const PointCloudT::Ptr& input_cloud, 
                                    std::vector<PointCloudT::Ptr>& cluster_clouds,
                                    double cluster_tolerance = 0.1, int min_cluster_size = 100, 
@@ -171,6 +176,11 @@ private:
 
     bool apply_intensity_filter(const PointCloudT::Ptr& input_cloud, PointCloudT::Ptr& output_cloud,
                                  const float min_intensity, const float max_intensity);
+
+    inline float dist_x_y(const PointT &p1, const PointT &p2)
+    {
+        return std::hypot(p1.x - p2.x, p1.y - p2.y);
+    }
 };
 
 #endif // EXTRABOARD_H

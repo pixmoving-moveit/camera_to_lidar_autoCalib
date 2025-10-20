@@ -53,13 +53,13 @@ ExtraBoard::ExtraBoard(const std::string& cache_directory) : display_running_(fa
 
     // start_display_thread();  //暂时不用显示了
     
-    std::cout << "ExtraBoard初始化完成" << std::endl;
+    spdlog::info("ExtraBoard初始化完成");
 }
 
 ExtraBoard::~ExtraBoard()
 {
     stop_display_thread();
-    std::cout << "ExtraBoard已销毁" << std::endl;
+    spdlog::info("ExtraBoard已销毁");
 }
 
 void ExtraBoard::set_algorithm_params(const AlgorithmParams& params)
@@ -77,28 +77,28 @@ bool ExtraBoard::load_pcd_file(const std::string& file_path)
     // 读取PCD文件
     if (pcl::io::loadPCDFile<PointT>(file_path, *temp_cloud) == -1)
     {
-        std::cerr << "无法读取PCD文件: " << file_path << std::endl;
+        spdlog::error("无法读取PCD文件: {}", file_path);
         return false;
     }
 
     // 应用base_link到sensor_kit_base_link的变换
-    if (algorithm_params_.has_transform)
+    if (algorithm_params_.has_transform && false)
     {
         // 使用PCL变换点云从base_link到sensor_kit_base_link坐标系
         pcl::transformPointCloud(*temp_cloud, *temp_cloud, algorithm_params_.transform_base_to_sensor_kit);
-        std::cout << "已将点云从base_link变换到sensor_kit_base_link坐标系" << std::endl;
+        spdlog::info("已将点云从base_link变换到sensor_kit_base_link坐标系");
     }
     else
     {
-        std::cout << "警告: 未设置base_link到sensor_kit_base_link的变换，点云保持原始坐标系" << std::endl;
+        spdlog::warn("未设置base_link到sensor_kit_base_link的变换，点云保持原始坐标系");
     }
     
     // 将变换后的点云复制到原始点云和处理点云
     *original_cloud_ = *temp_cloud;
-    
-    std::cout << "成功加载PCD文件: " << file_path << std::endl;
-    std::cout << "点云包含 " << temp_cloud->size() << " 个点" << std::endl;
-        
+
+    spdlog::info("成功加载PCD文件: {}", file_path);
+    spdlog::info("点云包含 {} 个点", temp_cloud->size());
+
     return true;
 }
 
@@ -126,17 +126,18 @@ void ExtraBoard::extract_points(std::vector<PointCloudT>& extracted_clouds)
     
     if (original_cloud_->empty())
     {
-        std::cerr << "警告: 原始点云为空" << std::endl;
+        spdlog::error("原始点云为空");
         return;
     }
-    
-    std::cout << "开始点云提取处理，原始点云包含 " << original_cloud_->size() << " 个点" << std::endl;
-    
+
+    spdlog::info("开始点云提取处理，原始点云包含 {} 个点", original_cloud_->size());
+
     // 1. 使用BOX滤波器提取点云
+    spdlog::info("Step1: 使用BOX滤波器提取点云, 去除无效点");
     PointCloudT::Ptr box_filtered_cloud(new PointCloudT);
     if (!apply_box_filter(original_cloud_, box_filtered_cloud, algorithm_params_.min_point, algorithm_params_.max_point))
     {
-        std::cerr << "BOX滤波失败" << std::endl;
+        spdlog::error("BOX滤波失败");
         return;
     }
 
@@ -144,27 +145,30 @@ void ExtraBoard::extract_points(std::vector<PointCloudT>& extracted_clouds)
     PointCloudT::Ptr no_nan_cloud(new PointCloudT);
     if(!apply_intensity_filter(box_filtered_cloud, no_nan_cloud, 0.0f, 200.0f))
     {
-        std::cerr << "去除无效点失败" << std::endl;
+        spdlog::error("去除无效点失败");
         return;
     }
 
 
     // 2. 滤除离群点
+    spdlog::info("Step2: 滤除离群点");
     PointCloudT::Ptr filtered_cloud(new PointCloudT);
     if (!apply_outlier_removal(no_nan_cloud, filtered_cloud, 5, 1.5))
     {
-        std::cerr << "离群点滤除失败" << std::endl;
+        spdlog::error("离群点滤除失败");
         return;
     }
 
     // 3. 使用欧式聚类分割点云
+    spdlog::info("Step3: 使用欧式聚类分割点云");
     std::vector<PointCloudT::Ptr> clustered_clouds;
     if (!apply_euclidean_clustering(filtered_cloud, clustered_clouds, 0.1, 5e3, 1e6))
     {
-        std::cerr << "欧式聚类失败" << std::endl;
+        spdlog::error("欧式聚类失败");
     }
 
     // 4. 对处理后的点云进行RANSAC平面分割,提取平面内点
+    spdlog::info("Step4: 对处理后的点云进行RANSAC平面分割,提取平面内点");
     std::vector<PointCloudT::Ptr> ransac_filtered_clouds;
     for(size_t i = 0; i < clustered_clouds.size(); ++i)
     {
@@ -177,34 +181,42 @@ void ExtraBoard::extract_points(std::vector<PointCloudT>& extracted_clouds)
             // std::cout << "聚类 " << i << " 平面分割完成，提取到平面点云包含 " << plane_cloud->size() << " 个点" << std::endl;
         }
     }
-    std::cout << "RANSAC平面分割完成，提取到 " << ransac_filtered_clouds.size() << " 个平面" << std::endl;
+    spdlog::info("RANSAC平面分割完成，提取到 {} 个平面", ransac_filtered_clouds.size());
 
-    processed_cloud_ = merge_pointclouds(ransac_filtered_clouds);
+
+    //这里需要对点云进行微分滤波，去除标定板支架等细小结构
+    std::vector<PointCloudT::Ptr> scaffold_filtered_clouds;
+    apply_scaffold_filter(ransac_filtered_clouds, scaffold_filtered_clouds);
+
+
+    processed_cloud_ = merge_pointclouds(scaffold_filtered_clouds);
     // 保存处理后的点云为PCD文件
     std::string save_path = cache_directory_ + "/processed_cloud.pcd";
     if (pcl::io::savePCDFileBinary(save_path, *processed_cloud_) == 0) {
-        std::cout << "处理后的点云已保存为: " << save_path << std::endl;
+        spdlog::info("处理后的点云已保存为: {}", save_path);
     } else {
-        std::cerr << "保存处理后的点云失败: " << save_path << std::endl;
+        spdlog::error("保存处理后的点云失败: {}", save_path);
     }
 
     //5. 进行欧式聚类过滤，滤除混在平面中的杂点
-    for(size_t i = 0; i < ransac_filtered_clouds.size(); ++i)
+    spdlog::info("Step5: 进行欧式聚类过滤，滤除混在平面中的杂点");
+    for(size_t i = 0; i < scaffold_filtered_clouds.size(); ++i)
     {
-        if (!apply_euclidean_filter(ransac_filtered_clouds[i], 0.1, 5e3, 1e5))
+        if (!apply_euclidean_filter(scaffold_filtered_clouds[i], 0.1, 5e3, 1e6))
         {
-            std::cerr << "欧式聚类过滤失败" << std::endl;
+            spdlog::error("欧式聚类过滤失败");
         }
     }
 
 
     // 6. 计算点云尺寸，进行尺寸过滤，只保留尺寸符合要求的点云
+    spdlog::info("Step6: 计算点云尺寸，进行尺寸过滤，只保留尺寸符合要求的点云");
     std::vector<PointCloudT::Ptr> size_filtered_clouds;
     bboxes.clear();
-    for (size_t i = 0; i < ransac_filtered_clouds.size(); ++i)
+    for (size_t i = 0; i < scaffold_filtered_clouds.size(); ++i)
     {
         BBox bbox;
-        if (compute_bounding_box(ransac_filtered_clouds[i], 0.05, bbox))
+        if (compute_bounding_box(scaffold_filtered_clouds[i], 0.05, bbox))
         {
             // 使用配置的尺寸范围
             std::vector<float> sizes = {bbox.size.x(), bbox.size.y(), bbox.size.z()};
@@ -213,10 +225,14 @@ void ExtraBoard::extract_points(std::vector<PointCloudT>& extracted_clouds)
             if ((sizes[0] > algorithm_params_.max_size || sizes[1] < algorithm_params_.min_size) || 
                 sizes[0]/sizes[1] < algorithm_params_.aspect_ratio_threshold)
             {
-                std::cout << "平面 " << i << " 尺寸过滤未通过: " << sizes[0] << " x " << sizes[1] << " x " << sizes[2] << " 米" << std::endl;
+                spdlog::info("平面 {} 尺寸过滤未通过: {:.2f} x {:.2f} x {:.2f} 米", i, sizes[0], sizes[1], sizes[2]);
                 continue;
             }
-            size_filtered_clouds.push_back(ransac_filtered_clouds[i]);
+            else
+            {
+                spdlog::info("平面 {} 尺寸正常: {:.2f} x {:.2f} x {:.2f} 米", i, sizes[0], sizes[1], sizes[2]);
+            }
+            size_filtered_clouds.push_back(scaffold_filtered_clouds[i]);
             bboxes.push_back(bbox);
         }
     }
@@ -230,7 +246,7 @@ void ExtraBoard::extract_points(std::vector<PointCloudT>& extracted_clouds)
         }
     }
 
-    std::cout << "点云提取处理完成，共生成 " << extracted_clouds.size() << " 个点云" << std::endl;
+    spdlog::info("点云提取处理完成，共生成 {} 簇点云", extracted_clouds.size());
 }
 
 /**
@@ -256,9 +272,11 @@ void ExtraBoard::board_register(std::vector<PointCloudT>& board_pointclouds, std
 {
     if (board_pointclouds.size() < 1)
     {
-        std::cerr << "警告: 点云为空" << std::endl;
+        spdlog::warn("点云为空");
         return;
     }
+
+    spdlog::info("Step7: 对每簇点云进行平面提取和投影到图像");
 
     //0.1 初始化配准图像
     std::vector<cv::Mat> registered_images;
@@ -274,7 +292,7 @@ void ExtraBoard::board_register(std::vector<PointCloudT>& board_pointclouds, std
     img_pc_trans_info.resize(board_pointclouds.size());
     for(auto& info : img_pc_trans_info) info = IPTransInfo();
 
-    std::cout << "开始进行各个点云的平面提取和投影..." << std::endl;
+    spdlog::info("开始进行各个点云的平面提取和投影...");
     for(size_t idx=0; idx < board_pointclouds.size(); ++idx)
     {
         PointCloudT::Ptr cloud_ptr(new PointCloudT);
@@ -282,7 +300,7 @@ void ExtraBoard::board_register(std::vector<PointCloudT>& board_pointclouds, std
 
         if (cloud_ptr->empty())
         {
-            std::cerr << "警告: 点云为空" << std::endl;
+            spdlog::warn("点云为空");
             return;
         }
 
@@ -291,24 +309,24 @@ void ExtraBoard::board_register(std::vector<PointCloudT>& board_pointclouds, std
         PointCloudT::Ptr plane_cloud(new PointCloudT);
         if (!apply_ransac_plane_segmentation(cloud_ptr, plane_cloud, coefficients, 50, 0.025))
         {
-            std::cerr << "错误: 未能找到平面" << std::endl;
+            spdlog::error("未能找到平面");
             return;
         }
         
         // 3. 计算点云质心
         pcl::compute3DCentroid(*plane_cloud, img_pc_trans_info.at(idx).centroid_);
-        std::cout << "点云质心: (" << img_pc_trans_info.at(idx).centroid_[0] << ", " << img_pc_trans_info.at(idx).centroid_[1] << ", " << img_pc_trans_info.at(idx).centroid_[2] << ")" << std::endl;
+        spdlog::info("点云质心: ({:.2f}, {:.2f}, {:.2f})", img_pc_trans_info.at(idx).centroid_[0], img_pc_trans_info.at(idx).centroid_[1], img_pc_trans_info.at(idx).centroid_[2]);
 
         // 4. 获取平面法向量并归一化
         Eigen::Vector3f plane_normal(coefficients->values[0], coefficients->values[1], coefficients->values[2]);
 
         plane_normal.normalize();
-        std::cout << "平面法向量: (" << plane_normal.x() << ", " << plane_normal.y() << ", " << plane_normal.z() << ")" << std::endl;
+        spdlog::info("平面法向量: ({:.2f}, {:.2f}, {:.2f})", plane_normal.x(), plane_normal.y(), plane_normal.z());
 
         //在XOY平面上，如果平面法向量由原点向外，则d<0；如果平面法向量由外向原点，则d>0
         float d = coefficients->values[3];
         if(d > 0) plane_normal = -plane_normal; //确保法向量由原点向外，以保证投影方向正确
-        std::cout << "方向判据："<< d << " 法向量修正：" << plane_normal.transpose() << std::endl;
+        spdlog::info("方向判据：{} 法向量修正：{},{},{}", d, plane_normal.x(), plane_normal.y(), plane_normal.z());
 
         // 5. 构建坐标变换矩阵，将平面变换到YOZ平面
         // 目标：平面法向量对齐到X轴 (1, 0, 0)
@@ -335,9 +353,9 @@ void ExtraBoard::board_register(std::vector<PointCloudT>& board_pointclouds, std
                             std::sin(rotation_angle) * K + 
                             (1 - std::cos(rotation_angle)) * K * K;
         }
-        
-        std::cout << "旋转角度: " << rotation_angle * 180.0 / M_PI << " 度" << std::endl;
-        
+
+        spdlog::info("旋转角度: {:.2f} 度", rotation_angle * 180.0 / M_PI);
+
         // 保存变换矩阵用于后续的坐标映射
         img_pc_trans_info.at(idx).rotation_matrix_ = rotation_matrix;
         img_pc_trans_info.at(idx).inverse_rotation_ = rotation_matrix.transpose(); // 旋转矩阵的逆等于转置
@@ -416,8 +434,8 @@ void ExtraBoard::board_register(std::vector<PointCloudT>& board_pointclouds, std
         // 保存当前投影图像到本地
         std::string filename = cache_directory_ + "/" + cv::format("projection_result_%zu.png", idx);
         cv::imwrite(filename, registered_images.at(idx));
-        std::cout << "成功投影 " << projected_points_ << " 个点到图像" << std::endl;
-        
+        spdlog::info("成功投影 {} 个点到图像", projected_points_);
+
     }
     
     for(size_t idx=0; idx < board_pointclouds.size(); ++idx)
@@ -448,7 +466,7 @@ void ExtraBoard::board_register(std::vector<PointCloudT>& board_pointclouds, std
         boards.at(idx).corners_cloud.is_valid = true;
     }
 
-    std::cout << "-----------点云平面提取和投影完成-----------" << std::endl;
+    spdlog::info("-----------点云平面提取和投影完成-----------");
     
 }
 
@@ -456,7 +474,7 @@ void ExtraBoard::board_register(std::vector<PointCloudT>& board_pointclouds, std
 void ExtraBoard::reset_to_original()
 {
     copy_cloud_to_processed(original_cloud_);
-    std::cout << "已重置为原始点云" << std::endl;
+    spdlog::info("已重置为原始点云");
 }
 
 size_t ExtraBoard::get_point_count() const
@@ -484,7 +502,7 @@ void ExtraBoard::start_display_thread()
     {
         display_running_ = true;
         display_thread_ = std::thread(&ExtraBoard::display_loop, this);
-        std::cout << "显示线程已启动" << std::endl;
+        spdlog::info("显示线程已启动");
     }
 }
 
@@ -498,7 +516,7 @@ void ExtraBoard::stop_display_thread()
             display_thread_.join();
         }
         cv::destroyAllWindows();
-        std::cout << "显示线程已停止" << std::endl;
+        spdlog::info("显示线程已停止");
     }
 }
 
@@ -535,7 +553,7 @@ bool ExtraBoard::image_to_world(int img_x, int img_y, float& world_x, float& wor
 {
     if (!trans_info.transform_valid_)
     {
-        std::cerr << "错误: 变换矩阵无效，请先执行board_register()" << std::endl;
+        spdlog::error("变换矩阵无效，请先执行board_register()");
         return false;
     }
     
@@ -568,7 +586,7 @@ bool ExtraBoard::world_to_image(float world_x, float world_y, float world_z, int
 {
     if (!trans_info.transform_valid_)
     {
-        std::cerr << "错误: 变换矩阵无效，请先执行board_register()" << std::endl;
+        spdlog::error("变换矩阵无效，请先执行board_register()");
         return false;
     }
     
@@ -610,14 +628,14 @@ bool ExtraBoard::load_template_image(const std::string& png_file_path)
     
     if (template_image_.empty())
     {
-        std::cerr << "错误: 无法读取PNG文件: " << png_file_path << std::endl;
+        spdlog::error("无法读取PNG文件: {}", png_file_path);
         template_loaded_ = false;
         return false;
     }
-    
-    std::cout << "成功加载模板图像: " << png_file_path << std::endl;
-    std::cout << "图像尺寸: " << template_image_.cols << "x" << template_image_.rows << std::endl;
-    
+
+    spdlog::info("成功加载模板图像: {}", png_file_path);
+    spdlog::info("图像尺寸: {}x{}", template_image_.cols, template_image_.rows);
+
     // 转换为灰度图像
     cv::Mat gray_image;
     cv::cvtColor(template_image_, gray_image, cv::COLOR_BGR2GRAY);
@@ -629,7 +647,7 @@ bool ExtraBoard::load_template_image(const std::string& png_file_path)
     cv::cvtColor(binary_template_, binary_template_, cv::COLOR_GRAY2BGR);
     
     template_loaded_ = true;
-    std::cout << "模板图像二值化完成" << std::endl;
+    spdlog::info("模板图像二值化完成");
     
     return true;
 }
@@ -643,7 +661,7 @@ cv::Mat ExtraBoard::get_template_image() const
 {
     if (!template_loaded_)
     {
-        std::cerr << "警告: 模板图像未加载" << std::endl;
+        spdlog::warn("警告: 模板图像未加载");
         return cv::Mat();
     }
     return template_image_.clone();
@@ -658,7 +676,7 @@ cv::Mat ExtraBoard::get_binary_template() const
 {
     if (!template_loaded_)
     {
-        std::cerr << "警告: 模板图像未加载" << std::endl;
+        spdlog::warn("警告: 模板图像未加载");
         return cv::Mat();
     }
     return binary_template_.clone();
@@ -678,7 +696,7 @@ Board2DCorners ExtraBoard::register_template_with_projection(cv::Mat& protected_
     
     if (!template_loaded_)
     {
-        std::cerr << "错误: 模板图像未加载，请先调用load_template_image()" << std::endl;
+        spdlog::error("错误: 模板图像未加载，请先调用load_template_image()");
         return board_info; // 返回空的BoardInfo
     }
     
@@ -688,7 +706,7 @@ Board2DCorners ExtraBoard::register_template_with_projection(cv::Mat& protected_
         std::lock_guard<std::mutex> lock(image_mutex_);
         if (protected_image.empty())
         {
-            std::cerr << "错误: 投影图像为空，请先执行board_register()" << std::endl;
+            spdlog::error("错误: 投影图像为空，请先执行board_register()");
             return board_info; // 返回空的BoardInfo
         }
         cv::cvtColor(protected_image, projection_gray, cv::COLOR_BGR2GRAY);
@@ -728,7 +746,7 @@ Board2DCorners ExtraBoard::register_template_with_projection(cv::Mat& protected_
 
         static int save_index = 0;
         std::string filename = cache_directory_ + "/" + cv::format("processed_projection_%d.png", save_index++);
-        std::cout << "保存处理后的投影图像: " << filename << std::endl;
+        spdlog::info("保存处理后的投影图像: {}", filename);
         cv::imwrite(filename, projection_gray);
 
         // 将处理后的projection_gray更新到protected_image（转换为3通道）
@@ -736,7 +754,7 @@ Board2DCorners ExtraBoard::register_template_with_projection(cv::Mat& protected_
         image_updated_ = true;
     }
     
-    std::cout << "开始进行模板配准..." << std::endl;
+    spdlog::info("开始进行模板配准...");
     
     // 将二值化模板转换为灰度图像用于匹配
     cv::Mat template_gray;
@@ -754,19 +772,19 @@ Board2DCorners ExtraBoard::register_template_with_projection(cv::Mat& protected_
     const double MATCH_THRESHOLD = 0.4; // 匹配阈值
     if (best_match_value < MATCH_THRESHOLD)
     {
-        std::cerr << "错误: 模板匹配质量过低 (" << best_match_value << " < " << MATCH_THRESHOLD << ")" << std::endl;
+        spdlog::error("错误: 模板匹配质量过低 ({} < {})", best_match_value, MATCH_THRESHOLD);
         return board_info; // 返回空的BoardInfo
     }
     
     // 保存配准结果
     registration_offset_ = cv::Point2f(best_match_location.x, best_match_location.y);
     registration_angle_ = best_angle;
-    
-    std::cout << "配准成功!" << std::endl;
-    std::cout << "最佳匹配度: " << best_match_value << std::endl;
-    std::cout << "偏移量: (" << registration_offset_.x << ", " << registration_offset_.y << ")" << std::endl;
-    std::cout << "旋转角度: " << registration_angle_ << " 度" << std::endl;
-    
+
+    spdlog::info("模板配准成功：");
+    spdlog::info("  最佳匹配度: {}", best_match_value);
+    spdlog::info("  偏移量: ({}, {})", registration_offset_.x, registration_offset_.y);
+    spdlog::info("  旋转角度: {} 度", registration_angle_);
+
     // 在投影图像上绘制匹配结果用于可视化
     {
         std::lock_guard<std::mutex> lock(image_mutex_);
@@ -795,7 +813,7 @@ Board2DCorners ExtraBoard::register_template_with_projection(cv::Mat& protected_
         // 计算匹配中心点（在投影图像中的位置）
         cv::Point2f match_center(
             best_match_location.x + template_gray.cols / 2.0f * best_scale,
-            best_match_location.y + template_gray.rows / 2.0f * best_scale
+            best_match_location.y + template_gray.rows / 2.0f
         );
         
         // 旋转角点并转换到投影图像坐标系
@@ -1001,7 +1019,6 @@ void ExtraBoard::fastTemplateMatchY(const cv::Mat& template_gray,
         cv::RotatedRect rbox = cv::minAreaRect(pts);   // angle [-90,0)
 
         /* ---------- 2. 两条边的方向向量 ---------- */
-        std::cout<<"rbox.angle: "<<rbox.angle<<std::endl;
         if(fabs(rbox.angle) > 45.f)  best_angle_y = -rbox.angle + 90.0f;    //处理最小包围框的长短边相差90度的情况
         else                        best_angle_y = -rbox.angle;
 
@@ -1070,7 +1087,7 @@ void ExtraBoard::fastTemplateMatchY(const cv::Mat& template_gray,
                 cv::Point minLoc, maxLoc;
                 cv::minMaxLoc(match_result, &minVal, &maxVal, &minLoc, &maxLoc);
 
-                std::cout<<"s:"<<s<<"  maxVal:"<<maxVal<<std::endl;
+                spdlog::info("  s: {}  maxVal: {}", s, maxVal);
 
                 // 4-5 记录所有尺度里的最佳
                 if (maxVal > best_match_value)
@@ -1093,7 +1110,7 @@ bool ExtraBoard::apply_intensity_filter(const PointCloudT::Ptr& input_cloud, Poi
 {
     if (input_cloud->empty())
     {
-        std::cerr << "警告: 输入点云为空，无法进行强度滤波" << std::endl;
+        spdlog::warn("警告: 输入点云为空，无法进行强度滤波");
         return false;
     }
 
@@ -1113,7 +1130,7 @@ bool ExtraBoard::apply_intensity_filter(const PointCloudT::Ptr& input_cloud, Poi
     output_cloud->width = output_cloud->points.size();
     output_cloud->height = 1; // 设为1表示无序点云
 
-    std::cout << "强度滤波完成: " << input_cloud->size() << " -> " << output_cloud->size() << " 个点" << std::endl;
+    spdlog::info("强度滤波完成: {} -> {} 个点", input_cloud->size(), output_cloud->size());
     return !output_cloud->empty();
 }
 
@@ -1123,7 +1140,6 @@ bool ExtraBoard::apply_box_filter(const PointCloudT::Ptr& input_cloud, PointClou
 {
     if (input_cloud->empty())
     {
-        std::cerr << "警告: 输入点云为空，无法进行BOX滤波" << std::endl;
         return false;
     }
     
@@ -1132,8 +1148,7 @@ bool ExtraBoard::apply_box_filter(const PointCloudT::Ptr& input_cloud, PointClou
     crop_box.setMax(max_point);
     crop_box.setInputCloud(input_cloud);
     crop_box.filter(*output_cloud);
-    
-    std::cout << "BOX滤波完成: " << input_cloud->size() << " -> " << output_cloud->size() << " 个点" << std::endl;
+
     return !output_cloud->empty();
 }
 
@@ -1142,7 +1157,7 @@ bool ExtraBoard::apply_outlier_removal(const PointCloudT::Ptr& input_cloud, Poin
 {
     if (input_cloud->empty())
     {
-        std::cerr << "警告: 输入点云为空，无法进行离群点滤除" << std::endl;
+        spdlog::warn("警告: 输入点云为空，无法进行离群点滤除");
         return false;
     }
     
@@ -1151,8 +1166,8 @@ bool ExtraBoard::apply_outlier_removal(const PointCloudT::Ptr& input_cloud, Poin
     sor.setMeanK(mean_k);
     sor.setStddevMulThresh(std_dev_mul_thresh);
     sor.filter(*output_cloud);
-    
-    std::cout << "离群点滤除完成: " << input_cloud->size() << " -> " << output_cloud->size() << " 个点" << std::endl;
+
+    spdlog::info("离群点滤除完成: {} -> {} 个点", input_cloud->size(), output_cloud->size());
     return !output_cloud->empty();
 }
 
@@ -1174,7 +1189,7 @@ bool ExtraBoard::apply_euclidean_filter(PointCloudT::Ptr& cloud,
         return false;
     }
     if (cluster_clouds.empty()) {
-        std::cerr << "欧式滤波后无有效点云" << std::endl;
+        spdlog::warn("欧式滤波后无有效点云");
         return false;
     }
     // 找到最大点数的簇
@@ -1197,7 +1212,7 @@ bool ExtraBoard::apply_euclidean_clustering(const PointCloudT::Ptr& input_cloud,
 {
     if (input_cloud->empty())
     {
-        std::cerr << "警告: 输入点云为空，无法进行欧式聚类" << std::endl;
+        spdlog::warn("警告: 输入点云为空，无法进行欧式聚类");
         return false;
     }
     
@@ -1227,8 +1242,55 @@ bool ExtraBoard::apply_euclidean_clustering(const PointCloudT::Ptr& input_cloud,
         cluster_clouds.push_back(cluster);
     }
 
-    std::cout << "欧式聚类完成: 发现 " << cluster_clouds.size() << " 个聚类" << std::endl;
+    spdlog::info("欧式聚类完成: 发现 {} 个聚类", cluster_clouds.size());
     return !cluster_clouds.empty();
+}
+
+bool ExtraBoard::apply_scaffold_filter(
+    const std::vector<PointCloudT::Ptr>& input_cloud,
+    std::vector<PointCloudT::Ptr>& output_cloud)
+{
+    if (input_cloud.empty())
+    {
+        spdlog::warn("警告: 输入点云列表为空，无法进行支架滤除");
+        return false;
+    }
+
+    for (const auto& cloud : input_cloud)
+    {
+        if (!cloud || cloud->empty())
+        {
+            spdlog::warn("警告: 输入点云为空，跳过");
+            continue;
+        }
+
+        PointCloudT::Ptr filtered_cloud(new PointCloudT);
+
+        // 1. 全局 Z 范围
+        PointT min_pt, max_pt;
+        pcl::getMinMax3D(*cloud, min_pt, max_pt);
+
+        // 2. 自顶向下滑动 4 cm 切片
+        for (float z = max_pt.z; z > min_pt.z; z -= 0.04f)
+        {
+            PointCloudT::Ptr slice(new PointCloudT);
+            Eigen::Vector4f min_box(min_pt.x, min_pt.y, z - 0.025f, 1.0f);
+            Eigen::Vector4f max_box(max_pt.x, max_pt.y, z + 0.025f, 1.0f);
+            apply_box_filter(cloud,slice, min_box, max_box);
+
+            if (slice->empty()) continue;
+
+            PointT slice_min, slice_max;
+            pcl::getMinMax3D(*slice, slice_min, slice_max);
+
+            // 宽度 > 25 cm 保留，其余视为支架丢弃
+            if (dist_x_y(slice_min, slice_max) > 0.25f)
+                *filtered_cloud += *slice;
+        }
+
+        output_cloud.push_back(filtered_cloud);
+    }
+    return true;
 }
 
 bool ExtraBoard::apply_ransac_plane_segmentation(const PointCloudT::Ptr& input_cloud, 
@@ -1238,7 +1300,7 @@ bool ExtraBoard::apply_ransac_plane_segmentation(const PointCloudT::Ptr& input_c
 {
     if (input_cloud->empty())
     {
-        std::cerr << "警告: 输入点云为空，无法进行RANSAC平面分割" << std::endl;
+        spdlog::warn("警告: 输入点云为空，无法进行RANSAC平面分割");
         return false;
     }
     
@@ -1257,7 +1319,7 @@ bool ExtraBoard::apply_ransac_plane_segmentation(const PointCloudT::Ptr& input_c
     
     if (inliers->indices.size() == 0 || coefficients->values.size() < 4)
     {
-        std::cerr << "错误: 未能找到平面" << std::endl;
+        spdlog::error("错误: 未能找到平面");
         return false;
     }
     
@@ -1283,7 +1345,7 @@ bool ExtraBoard::apply_ransac_plane_segmentation(const PointCloudT::Ptr& input_c
 bool ExtraBoard::apply_voxel_filter(const PointCloudT::Ptr& input_cloud, float voxel_size, PointCloudT::Ptr& output_cloud)
 {
     if (!input_cloud || input_cloud->empty()) {
-        std::cerr << "警告: 输入点云为空，无法进行体素滤波" << std::endl;
+        spdlog::warn("警告: 输入点云为空，无法进行体素滤波");
         return false;
     }
     pcl::VoxelGrid<PointT> voxel_filter;
@@ -1291,7 +1353,7 @@ bool ExtraBoard::apply_voxel_filter(const PointCloudT::Ptr& input_cloud, float v
     voxel_filter.setLeafSize(voxel_size, voxel_size, voxel_size);
     voxel_filter.filter(*output_cloud);
     if (output_cloud->empty()) {
-        std::cerr << "体素滤波后点云为空" << std::endl;
+        spdlog::warn("体素滤波后点云为空");
         return false;
     }
     return true;
@@ -1308,7 +1370,7 @@ bool ExtraBoard::apply_voxel_filter(const PointCloudT::Ptr& input_cloud, float v
 bool ExtraBoard::compute_bounding_box(const PointCloudT::Ptr& input_cloud, float voxel_size, BBox& box)
 {
     if (!input_cloud || input_cloud->empty()) {
-        std::cerr << "警告: 输入点云为空，无法计算包围盒" << std::endl;
+        spdlog::warn("警告: 输入点云为空，无法计算包围盒");
         return false;
     }
 

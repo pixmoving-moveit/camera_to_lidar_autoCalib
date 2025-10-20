@@ -23,13 +23,7 @@ void CornersMatch::init_cornersMatch(const ArucoInitParams& params)
 {
     marker_num = params.marker_num;
     marker_order = params.marker_order;
-    std::cout << "[CornersMatch] 初始化完成, marker_num: " << marker_num << std::endl;
-    std::cout << "[CornersMatch] 初始化完成, marker_order: ";
-    for (size_t i = 0; i < marker_order.size(); ++i) {
-        std::cout << marker_order[i];
-        if (i != marker_order.size() - 1) std::cout << ", ";
-    }
-    std::cout << std::endl;
+    spdlog::info("[CornersMatch] 初始化完成, marker_order: {}", fmt::join(marker_order, ", "));
     
 }
 
@@ -60,19 +54,19 @@ void CornersMatch::getMatchResult(std::vector<BoardInfo>& result)
                 
                 result.push_back(board_info);
                 found_match = true;
-                
-                std::cout << "[CornersMatch] 匹配成功 - board_id: " << p_board.board_id << std::endl;
+
+                spdlog::info("[CornersMatch] 匹配成功 - board_id: {}", p_board.board_id);
                 break; // 找到匹配后跳出内层循环
             }
         }
         
         if(!found_match)
         {
-            std::cerr << "[CornersMatch] 警告: 未找到board_id " << p_board.board_id << " 的3D匹配" << std::endl;
+            spdlog::error("[CornersMatch] 警告: 未找到board_id {} 的3D匹配", p_board.board_id);
         }
     }
-    
-    std::cout << "[CornersMatch] 匹配完成，成功匹配 " << result.size() << " 个标定板" << std::endl;
+
+    spdlog::info("[CornersMatch] 匹配完成，成功匹配 {} 个标定板", result.size());
 }
 
 // 设置点云 Q（3D 点）所有通过点云检测到的标定板中心点
@@ -126,16 +120,16 @@ void CornersMatch::setBoardPointCloudCenters_Q(std::vector<BoardInfo>& boards)
             }
             else
             {
-                std::cerr << "[CornersMatch] marker_order配置不足，索引 " << i << " 超出范围" << std::endl;
+                spdlog::error("[CornersMatch] marker_order配置不足，索引 {} 超出范围", i);
                 boards[original_index].board_id = -1; // 设置为无效ID
             }
         }
-        std::cout << "[CornersMatch] 点云标定板中心点设置完成，共 " << Q_board_corners.size() << " 个" << std::endl;
+        spdlog::info("[CornersMatch] 点云标定板中心点设置完成，共 {} 个", Q_board_corners.size());
     }
     else
     {
-        std::cerr << "[CornersMatch] lidar 检测到的tags数量与配置参数不一致，无法进行配准" << std::endl;
-        std::cerr << "[CornersMatch] 检测到: " << boards.size() << " 个, 期望: " << marker_num << " 个" << std::endl;
+        spdlog::error("[CornersMatch] lidar 检测到的tags数量与配置参数不一致，无法进行配准");
+        spdlog::error("[CornersMatch] 检测到: {} 个, 期望: {} 个", boards.size(), marker_num);
     }
 }
 
@@ -149,8 +143,8 @@ void CornersMatch::setBoardArucoCenters_P(const BoardImgAruco& boards_temp)
     }
     else
     {
-        std::cerr << "[CornersMatch] 相机检测到的tags数量超过配置参数，无法进行配准" << std::endl;
-        std::cerr << "[CornersMatch] 检测到: " << boards_temp.aruco_num << " 个, 期望最多: " << marker_num << " 个" << std::endl;
+        spdlog::error("[CornersMatch] 相机检测到的tags数量超过配置参数，无法进行配准");
+        spdlog::error("[CornersMatch] 检测到: {} 个, 期望最多: {} 个", boards_temp.aruco_num, marker_num);
         return;
     }
 }

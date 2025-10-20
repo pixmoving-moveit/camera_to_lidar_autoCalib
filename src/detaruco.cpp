@@ -22,8 +22,8 @@ DetAruco::DetAruco(/* args */)
     yoloDetector = std::make_unique<YOLO_V8>();
     yoloDetector->classes.push_back("pot"); //只有一个类别
     DL_INIT_PARAM params;
-    params.rectConfidenceThreshold = 0.45;
-    params.iouThreshold = 0.5;
+    params.rectConfidenceThreshold = 0.6;
+    params.iouThreshold = 0.4;
     params.modelPath = "/home/pix/code/calibration_ws/src/calibBoard/config/best.onnx";
     params.imgSize = { 640, 640 };
     params.modelType = YOLO_DETECT_V8;
@@ -54,7 +54,7 @@ BoardImgAruco DetAruco::detectArucoMarkers(const int cam_id, const IntrParams& i
     aruco_info.cam_id = cam_id;
 
     if (!flag_init) {
-        std::cerr << "Error: DetAruco not initialized. Call init_DetAruco() first." << std::endl;
+        spdlog::error("DetAruco未初始化，请先调用init_DetAruco()");
         return aruco_info;
     }
 
@@ -63,22 +63,22 @@ BoardImgAruco DetAruco::detectArucoMarkers(const int cam_id, const IntrParams& i
     if (cam_id_name_map_.find(cam_id) != cam_id_name_map_.end()) {
         imagePath = image_path_ + "/" + cam_id_name_map_[cam_id];
     } else {
-        std::cerr << "Error: Invalid camera ID: " << cam_id << std::endl;
+        spdlog::error("无效的相机ID: {}", cam_id);
         return aruco_info;
     }
 
     // 读取输入图像
     cv::Mat image = cv::imread(imagePath + "/image_undistort.png");
     if (image.empty()) {
-        std::cerr << "Error: Unable to open image file: " << imagePath << std::endl;
+        spdlog::error("无法打开图像文件: {}", imagePath);
         return aruco_info;
     }
 
     // 创建输出图像的副本
     cv::Mat outputImage = image.clone();
 
-    double alpha = 1.2; // 亮度增益
-    int beta = 20;      // 亮度偏移
+    double alpha = 1.1; // 亮度增益
+    int beta = 10;      // 亮度偏移
     image.convertTo(image, -1, alpha, beta);
 
     
@@ -97,8 +97,6 @@ BoardImgAruco DetAruco::detectArucoMarkers(const int cam_id, const IntrParams& i
     // 转换相机内参为cv::Mat
     cv::Mat cameraMatrix = intr_params.K_;
     cv::Mat distCoeffs = intr_params.dist_;
-
-    std::cout<<"cameraMatrix: "<<cameraMatrix<<std::endl;
 
     std::vector<ArucoBoardInfo> detectedBoards;
     
@@ -129,10 +127,7 @@ BoardImgAruco DetAruco::detectArucoMarkers(const int cam_id, const IntrParams& i
             board_3d.board_id = markerIds[i];
             board_3d.center = cv::Point3f(tvecs[i][2], -tvecs[i][0], tvecs[i][1]);
 
-            std::cout << "Detected marker ID: " << markerIds[i] << " 坐标: ("
-                      << board_3d.center.x << ", "
-                      << board_3d.center.y << ", "
-                      << board_3d.center.z << ")" << std::endl;
+            spdlog::info("Detected marker ID: {} 坐标: ({:.2f}, {:.2f}, {:.2f})", markerIds[i], board_3d.center.x, board_3d.center.y, board_3d.center.z);
             // 在图像上绘制坐标轴
             // cv::aruco::drawAxis(outputImage, cameraMatrix, distCoeffs, rvecs[i], tvecs[i], marker_length_/4);
             const auto& markers = markerCorners[i];  // 当前标记的四个角点
@@ -204,6 +199,8 @@ BoardImgAruco DetAruco::detectArucoMarkers(const int cam_id, const IntrParams& i
             cv::Mat img_show = board_info.aruco_img.clone();
             yoloDetector->RunSession(img_show, res);
 
+            keepTop3ByScore(res); // 保留置信度最高的三个结果
+
             std::vector<cv::Point2f> corner_points;
 
             for (auto& re : res)
@@ -255,6 +252,7 @@ BoardImgAruco DetAruco::detectArucoMarkers(const int cam_id, const IntrParams& i
 
             if(corner_points.size() == 3) //检测到三个圆形锚点
             {
+                spdlog::info("检测到三个圆形锚点，开始计算角点位置");
                 // 计算三个圆形锚点的最小外接圆
                 cv::Point2f center(0, 0);
                 for (const auto& pt : corner_points) {
@@ -285,6 +283,10 @@ BoardImgAruco DetAruco::detectArucoMarkers(const int cam_id, const IntrParams& i
                 board_2d.corn_right_bottom = sorted_points[2];
                 board_2d.corn_left_bottom = markers[2];
 
+            }
+            else
+            {
+                spdlog::error("未检测到三个圆形锚点，无法计算角点位置，检测到 {} 个", corner_points.size());
             }
             aruco_info.boards_2d[i] = board_2d;
 
@@ -319,6 +321,22 @@ BoardImgAruco DetAruco::detectArucoMarkers(const int cam_id, const IntrParams& i
     return aruco_info;
 }
 
+void DetAruco::keepTop3ByScore(std::vector<DL_RESULT>& res)
+{
+    if (res.size() <= 3) return;
+
+    // 1. 计算 score 并排序（降序）
+    std::sort(res.begin(), res.end(),
+              [](const DL_RESULT& a, const DL_RESULT& b)
+              {
+                  double scoreA = a.box.area() * a.confidence;
+                  double scoreB = b.box.area() * b.confidence;
+                  return scoreA > scoreB;          // 从大到小
+              });
+
+    // 2. 只保留前 3 个
+    res.resize(3);
+}
 
 DetAruco* DetAruco::getInstance()
 {
@@ -423,8 +441,7 @@ char* YOLO_V8::CreateSession(DL_INIT_PARAM& iParams) {
     bool result = std::regex_search(iParams.modelPath, pattern);
     if (result)
     {
-        Ret = "[YOLO_V8]:Your model path is error.Change your model path without chinese characters.";
-        std::cout << Ret << std::endl;
+        spdlog::error("[YOLO_V8]: Your model path is error.Change your model path without chinese characters.");
         return Ret;
     }
     try
@@ -485,7 +502,7 @@ char* YOLO_V8::CreateSession(DL_INIT_PARAM& iParams) {
         std::string result = std::string(str1) + std::string(str2);
         char* merged = new char[result.length() + 1];
         std::strcpy(merged, result.c_str());
-        std::cout << merged << std::endl;
+        // spdlog::error("{}", merged);
         delete[] merged;
         return "[YOLO_V8]:Create session failed.";
     }
@@ -616,11 +633,11 @@ char* YOLO_V8::TensorProcess(clock_t& starttime_1, cv::Mat& iImg, N& blob, std::
         double post_process_time = (double)(starttime_4 - starttime_3) / CLOCKS_PER_SEC * 1000;
         if (cudaEnable)
         {
-            std::cout << "[YOLO_V8(CUDA)]: " << pre_process_time << "ms pre-process, " << process_time << "ms inference, " << post_process_time << "ms post-process." << std::endl;
+            spdlog::info("[YOLO_V8(CUDA)]: {}ms pre-process, {}ms inference, {}ms post-process.", pre_process_time, process_time, post_process_time);
         }
         else
         {
-            std::cout << "[YOLO_V8(CPU)]: " << pre_process_time << "ms pre-process, " << process_time << "ms inference, " << post_process_time << "ms post-process." << std::endl;
+            spdlog::info("[YOLO_V8(CPU)]: {}ms pre-process, {}ms inference, {}ms post-process.", pre_process_time, process_time, post_process_time);
         }
 #endif // benchmark
 
@@ -650,7 +667,7 @@ char* YOLO_V8::TensorProcess(clock_t& starttime_1, cv::Mat& iImg, N& blob, std::
         break;
     }
     default:
-        std::cout << "[YOLO_V8]: " << "Not support model type." << std::endl;
+        spdlog::error("[YOLO_V8]: Not support model type.");
     }
     return RET_OK;
 
@@ -677,7 +694,7 @@ char* YOLO_V8::WarmUpSession() {
         double post_process_time = (double)(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
         if (cudaEnable)
         {
-            std::cout << "[YOLO_V8(CUDA)]: " << "Cuda warm-up cost " << post_process_time << " ms. " << std::endl;
+            spdlog::info("[YOLO_V8(CUDA)]: Cuda warm-up cost {} ms.", post_process_time);
         }
     }
     else

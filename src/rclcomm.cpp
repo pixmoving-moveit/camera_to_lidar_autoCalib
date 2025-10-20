@@ -8,8 +8,7 @@ using namespace std::chrono_literals;
 
 RclComm::RclComm() : Node("calib_board_node")
 {
-    RCLCPP_INFO(this->get_logger(), "CalibBoard节点已启动");
-    
+    spdlog::info("CalibBoard节点开始初始化");
     // 初始化参数
     init_parameters();
     init_tf2_map();
@@ -32,33 +31,34 @@ RclComm::RclComm() : Node("calib_board_node")
     cornersmatch_ = CornersMatch::getInstance();
     cornersmatch_->init_cornersMatch(aruco_params_);
     
-    RCLCPP_INFO(this->get_logger(), "RclComm初始化完成");
+    spdlog::info("CalibBoard初始化完成");
 }
 
 RclComm::~RclComm()
 {
-
-    RCLCPP_INFO(this->get_logger(), "CalibBoard节点已关闭");
+    spdlog::info("CalibBoard节点已关闭");
+    
+    SPD_LOG::shutdown();    //在节点关闭前手动关闭log
 }
 
 void RclComm::start()
 {
-    RCLCPP_INFO(this->get_logger(), "CalibBoard节点开始运行...");
+    spdlog::info("CalibBoard节点开始运行...");
     
     // 设置算法参数到ExtraBoard
     extraboard_->set_algorithm_params(algorithm_params_);
 
     // 使用参数加载模板图像
-    RCLCPP_INFO(this->get_logger(), "加载模板图像: %s", template_image_path_.c_str());
+    spdlog::info("加载模板图像:{}", template_image_path_);
     if (!extraboard_->load_template_image(template_image_path_))
     {
-        RCLCPP_ERROR(this->get_logger(), "无法载入模板图像: %s", template_image_path_.c_str());
+        spdlog::error("无法载入模板图像:{}", template_image_path_);
         return;
     }
-    RCLCPP_INFO(this->get_logger(), "成功载入模板图像");
+    spdlog::info("成功载入模板图像");
 
     // 使用参数加载PCD文件
-    RCLCPP_INFO(this->get_logger(), "加载PCD文件: %s", data_path_.c_str());
+    spdlog::info("加载PCD文件:{}", data_path_);
     extraboard_->load_pcd_file(data_path_ + "/test.pcd");
     std::vector<PointCloudT> test;
     extraboard_->extract_points(test);
@@ -72,12 +72,13 @@ void RclComm::start()
 
     for(const int& cam_id : calib_camera_list_)
     {
-        RCLCPP_INFO(this->get_logger(), "待标定相机ID: %d", cam_id);
+        spdlog::info("待标定相机ID:{}", cam_id);
     }
 
     for(const int& cam_id : calib_camera_list_)
     {
-        RCLCPP_INFO(this->get_logger(), "====>准备标定相机 ID: %d", cam_id);
+        spdlog::info("====>准备标定相机 ID:{}", cam_id);
+
         IntrParams intr_params = calibfunc->getIntrParams(cam_id);   //获取相机cam_id的内参
         auto detaruco_info = detaruco_->detectArucoMarkers(cam_id, intr_params); //检测相机cam_id拍摄到的Aruco标记
         cornersmatch_->setBoardArucoCenters_P(detaruco_info);
@@ -88,7 +89,7 @@ void RclComm::start()
         calibfunc->setDataForCalib(cam_id, result);
         calibfunc->calibrate(cam_id);
 
-        RCLCPP_INFO(this->get_logger(), "====>相机标定完成 ID: %d", cam_id);
+        spdlog::info("====>相机标定完成 ID:{}", cam_id);
     }
 
     // IntrParams intr_params = calibfunc->getIntrParams(5);   //获取相机5的内参
@@ -123,8 +124,7 @@ void RclComm::init_publishers()
     // 初始化TF2广播器
     static_tf_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(*this);
     
-    RCLCPP_INFO(this->get_logger(), "发布器已初始化 - 话题: %s, %s, %s", 
-                pointcloud_topic_.c_str(), pointcloud_target_topic_.c_str(), bbox_topic_.c_str());
+    spdlog::info("发布器已初始化 - 话题:{}, {}, {}", pointcloud_topic_, pointcloud_target_topic_, bbox_topic_);
 }
 
 void RclComm::init_timers()
@@ -134,7 +134,8 @@ void RclComm::init_timers()
     timer_ = this->create_wall_timer(
         timer_period, std::bind(&RclComm::timer_callback, this));
     
-    RCLCPP_INFO(this->get_logger(), "定时器已初始化，发布频率: %.1f Hz", publish_frequency_);
+    spdlog::info("定时器已初始化，发布频率: {} Hz", publish_frequency_);
+
 }
 
 void RclComm::timer_callback()
@@ -165,13 +166,10 @@ void RclComm::publish_pointcloud()
         // 发布点云
         pointcloud_publisher_->publish(pointcloud_msg);
         
-        RCLCPP_DEBUG(this->get_logger(), "已发布点云数据，包含 %zu 个点", 
-                    extraboard_->get_point_count());
     }
     else
     {
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                            "点云数据为空，请先加载PCD文件");
+        spdlog::warn("点云数据为空, 请检查PCD文件加载情况!");
     }
 }
 
@@ -221,11 +219,10 @@ void RclComm::publish_target_pointcloud(const std::vector<BoardInfo>& boards)
         // 发布board_id文字标签
         publish_board_id_labels(boards);
         
-        // RCLCPP_INFO(this->get_logger(), "已发布目标点云，包含 %zu 个关键点", target_cloud->points.size());
     }
     else
     {
-        RCLCPP_WARN(this->get_logger(), "目标点云为空，无法发布");
+        spdlog::warn("目标点云为空，无法发布!");
     }
 }
 
@@ -466,27 +463,29 @@ void RclComm::init_parameters()
     aruco_params_.marker_order.assign(order.begin(), order.end());   // 自动转型
     aruco_params_.export_yolo_data = static_cast<bool>(this->get_parameter("export_yolo_data").as_int());
 
+    // 创建log文件及初始化
+    logger_ = new SPD_LOG(cache_directory_ + "/log");  //必须在参数读取后，创建log文件夹
 
     // 打印参数信息
-    RCLCPP_INFO(this->get_logger(), "参数已初始化:");
-    RCLCPP_INFO(this->get_logger(), "  PCD文件路径: %s", data_path_.c_str());
-    RCLCPP_INFO(this->get_logger(), "  模板图像路径: %s", template_image_path_.c_str());
-    RCLCPP_INFO(this->get_logger(), "  外参文件路径: %s", parameters_path_.c_str());
-    RCLCPP_INFO(this->get_logger(), "  发布频率: %.1f Hz", publish_frequency_);
-    RCLCPP_INFO(this->get_logger(), "  点云话题: %s", pointcloud_topic_.c_str());
-    RCLCPP_INFO(this->get_logger(), "  目标点云话题: %s", pointcloud_target_topic_.c_str());
-    RCLCPP_INFO(this->get_logger(), "  BBox话题: %s", bbox_topic_.c_str());
-    RCLCPP_INFO(this->get_logger(), "  坐标系: %s", frame_id_.c_str());
-    RCLCPP_INFO(this->get_logger(), "  算法参数:");
-    RCLCPP_INFO(this->get_logger(), "    min_point: [%.1f, %.1f, %.1f, %.1f]", 
+    spdlog::info("参数已初始化:");
+    spdlog::info("  PCD文件路径: {}", data_path_);
+    spdlog::info("  模板图像路径: {}", template_image_path_);
+    spdlog::info("  外参文件路径: {}", parameters_path_);
+    spdlog::info("  发布频率: {:.1f} Hz", publish_frequency_);
+    spdlog::info("  点云话题: {}", pointcloud_topic_);
+    spdlog::info("  目标点云话题: {}", pointcloud_target_topic_);
+    spdlog::info("  BBox话题: {}", bbox_topic_);
+    spdlog::info("  坐标系: {}", frame_id_);
+    spdlog::info("  算法参数:");
+    spdlog::info("    min_point: [{:.1f}, {:.1f}, {:.1f}, {:.1f}]", 
                 algorithm_params_.min_point[0], algorithm_params_.min_point[1], 
                 algorithm_params_.min_point[2], algorithm_params_.min_point[3]);
-    RCLCPP_INFO(this->get_logger(), "    max_point: [%.1f, %.1f, %.1f, %.1f]", 
+    spdlog::info("    max_point: [{:.1f}, {:.1f}, {:.1f}, {:.1f}]", 
                 algorithm_params_.max_point[0], algorithm_params_.max_point[1], 
                 algorithm_params_.max_point[2], algorithm_params_.max_point[3]);
-    RCLCPP_INFO(this->get_logger(), "    min_size: %.1f m", algorithm_params_.min_size);
-    RCLCPP_INFO(this->get_logger(), "    max_size: %.1f m", algorithm_params_.max_size);
-    RCLCPP_INFO(this->get_logger(), "    aspect_ratio_threshold: %.1f", algorithm_params_.aspect_ratio_threshold);
+    spdlog::info("    min_size: {:.1f} m", algorithm_params_.min_size);
+    spdlog::info("    max_size: {:.1f} m", algorithm_params_.max_size);
+    spdlog::info("    aspect_ratio_threshold: {:.1f}", algorithm_params_.aspect_ratio_threshold);
 }
 
 void RclComm::init_tf2_map()
@@ -503,7 +502,7 @@ void RclComm::init_tf2_map()
     std::string yaml_path = parameters_path_ + "/extrinsic_parameters/sensor_kit_calibration.yaml";
     YAML::Node config = read_yaml_file(yaml_path);
     if (!config["sensor_kit_base_link"]) {
-        std::cerr << "YAML文件缺少sensor_kit_base_link节点: " << yaml_path << std::endl;
+        spdlog::error("YAML文件缺少sensor_kit_base_link节点: {}", yaml_path);
         return;
     }
     const YAML::Node& sensors = config["sensor_kit_base_link"];
@@ -524,7 +523,7 @@ void RclComm::init_tf2_map()
     yaml_path = parameters_path_ + "/extrinsic_parameters/sensors_calibration.yaml";
     YAML::Node config_ = read_yaml_file(yaml_path);
     if (!config_["base_link"]) {
-        std::cerr << "YAML文件缺少base_link节点: " << yaml_path << std::endl;
+        spdlog::error("YAML文件缺少base_link节点: {}", yaml_path);
         return;
     }
     const YAML::Node& sensors_ = config_["base_link"];
@@ -552,12 +551,12 @@ YAML::Node RclComm::read_yaml_file(const std::string& file_path)
     }
     catch (const YAML::BadFile& e)
     {
-        std::cerr << "无法打开YAML文件: " << file_path << "，错误: " << e.what() << std::endl;
+        spdlog::error("无法打开YAML文件: {}，错误: {}", file_path, e.what());
         return YAML::Node();
     }
     catch (const std::exception& e)
     {
-        std::cerr << "读取YAML文件时发生异常: " << e.what() << std::endl;
+        spdlog::error("读取YAML文件时发生异常: {}", e.what());
         return YAML::Node();
     }
 }
@@ -631,8 +630,12 @@ void RclComm::compute_base_to_sensor_kit_transform()
     // 保存到算法参数中
     algorithm_params_.transform_base_to_sensor_kit = transform; // 得到lidar_ft_base_link到sensor_kit_base_link的变换
     algorithm_params_.has_transform = true;
-    
-    RCLCPP_INFO(this->get_logger(), "计算lidar_ft_base_link到sensor_kit_base_link变换矩阵成功");
-    std::cout<< algorithm_params_.transform_base_to_sensor_kit << std::endl;
+
+    spdlog::info("计算lidar_ft_base_link到sensor_kit_base_link变换矩阵成功");
+    spdlog::info("变换矩阵为:");
+    spdlog::info("    | {:.3f} {:.3f} {:.3f} {:.3f} |", transform(0,0), transform(0,1), transform(0,2), transform(0,3));
+    spdlog::info("    | {:.3f} {:.3f} {:.3f} {:.3f} |", transform(1,0), transform(1,1), transform(1,2), transform(1,3));
+    spdlog::info("    | {:.3f} {:.3f} {:.3f} {:.3f} |", transform(2,0), transform(2,1), transform(2,2), transform(2,3));
+    spdlog::info("    | {:.3f} {:.3f} {:.3f} {:.3f} |", transform(3,0), transform(3,1), transform(3,2), transform(3,3));
 }
 

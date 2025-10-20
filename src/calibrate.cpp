@@ -41,7 +41,7 @@ IntrParams CalibFunc::read_intrinsicParams(const std::string intrinsics_path)
     try {
         intrinsics = YAML::LoadFile(intrinsics_path);
     } catch (const std::exception& e) {
-        std::cerr << "[CalibFunc] 配置文件打开失败: " << intrinsics_path << "\n" << e.what() << std::endl;
+        spdlog::error("[CalibFunc] 配置文件打开失败: {} \n{}", intrinsics_path, e.what());
         throw std::runtime_error("无法打开配置文件: " + intrinsics_path);
     }
 
@@ -80,7 +80,7 @@ ExtParams CalibFunc::read_extrinsicParams(const std::string extrinsics_path, con
     try {
         extrinsics = YAML::LoadFile(extrinsics_path);
     } catch (const std::exception& e) {
-        std::cerr << "[CalibFunc] 配置文件打开失败: " << extrinsics_path << "\n" << e.what() << std::endl;
+        spdlog::error("[CalibFunc] 配置文件打开失败: {} \n{}", extrinsics_path, e.what());
         throw std::runtime_error("无法打开配置文件: " + extrinsics_path);
     }
     // camera0/camera_link
@@ -108,7 +108,7 @@ void CalibFunc::write_Extrinsics()
     try {
         extrinsics = YAML::LoadFile(ext_path);
     } catch (const std::exception& e) {
-        std::cerr << "[CalibFunc] 配置文件打开失败: " << ext_path << "\n" << e.what() << std::endl;
+        spdlog::error("[CalibFunc] 配置文件打开失败: {} \n{}", ext_path, e.what());
         throw std::runtime_error("无法打开配置文件: " + ext_path);
     }
 
@@ -130,10 +130,10 @@ void CalibFunc::write_Extrinsics()
         }
         else
         {
-            std::cerr << "[CalibFunc] 配置文件缺少节点: " << cam_key << std::endl;
+            spdlog::error("[CalibFunc] 配置文件缺少节点: {}", cam_key);
         }
     }
-    std::cout << "写入外参到: " << ext_path << std::endl;
+    spdlog::info("写入外参到: {}", ext_path);
 
     std::ofstream fout(ext_path);
     fout << extrinsics;
@@ -145,6 +145,7 @@ void CalibFunc::setDataForCalib(const int cam_id, const std::vector<BoardInfo>& 
     if(cam_id < 0 || cam_id >= static_cast<int>(camera_params_.size()))
     {
         throw std::out_of_range("无效的摄像头ID");
+        spdlog::error("[CalibFunc] 无效的摄像头ID: {}", cam_id);
     }
     DataPair data_pair;
     data_pair.cam_id = cam_id;
@@ -171,7 +172,7 @@ void CalibFunc::calibrate(const int cam_id)
 {
     if(!flag_init)
     {
-        std::cerr << "[CalibFunc] 请先调用 init_CalibFunc() 初始化" << std::endl;
+        spdlog::error("[CalibFunc] 请先调用 init_CalibFunc() 初始化");
         return;
     }
 
@@ -181,8 +182,9 @@ void CalibFunc::calibrate(const int cam_id)
     bool success = cv::solvePnP(data_pair.points_3d_, data_pair.points_2d_, cam_params.intrinsics_.K_, cam_params.intrinsics_.dist_, rvec, tvec, false, cv::SOLVEPNP_EPNP);
     if (success) 
     {
-        std::cout << "标定成功!\n";
-        std::cout << "rvec: " << rvec.t() << "\ntvec: " << tvec.t() << std::endl;
+        spdlog::info("[CalibFunc] 相机: {} 标定成功!", cam_id);
+        spdlog::info("rvec: {},{},{}, tvec: {},{},{}", rvec.at<double>(0,0), rvec.at<double>(1,0), rvec.at<double>(2,0),
+            tvec.at<double>(0,0), tvec.at<double>(1,0), tvec.at<double>(2,0));
         // 提取欧拉角和平移
         cv::Mat R_cv;
         cv::Rodrigues(rvec, R_cv); // R_cv为3x3 CV_64F
@@ -212,7 +214,7 @@ void CalibFunc::calibrate(const int cam_id)
         cam_params.extrinsics_ = ext_;
 
     } else {
-        std::cout <<"相机: "<<cam_id << "标定失败!" << std::endl;
+        spdlog::error("[CalibFunc] 相机: {} 标定失败!", cam_id);
     }
 }
 

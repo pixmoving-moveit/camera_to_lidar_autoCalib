@@ -51,5 +51,5 @@ calib_board_node:
       marker_scale: 2.2     # 外围框放大比例
       marker_shift: 0.2     # 外围框平移比例
       marker_num: 6
-      marker_order: [1, 2, 5, 4, 3, 6]  # ArUco标记顺序
+      marker_order: [5, 1, 4, 6, 3, 2]  # ArUco标记顺序
 

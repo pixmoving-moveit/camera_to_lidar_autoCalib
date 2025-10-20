@@ -10,13 +10,9 @@ int main(int argc, char * argv[])
     // 创建节点实例
     auto node = std::make_shared<RclComm>();
     
-    // 启动标定
+    spdlog::info("标定程序启动");
     node->start();
 
-    // auto calibfunc = CalibFunc::getInstance();
-    // IntrParams intr_params = calibfunc->getIntrParams(5);   //获取相机cam_id的内参
-    // auto detaruco_info = node->detaruco_->detectArucoMarkers(5, intr_params); //检测相机cam_id拍摄到的Aruco标记
-    
     // 开始事件循环
     rclcpp::spin(node);
     
