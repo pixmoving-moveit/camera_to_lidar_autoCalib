@@ -10,15 +10,6 @@
 
 DetAruco::DetAruco(/* args */)
 {
-    cam_id_name_map_ = {
-        {0, "camera_front"},
-        {1, "camera_rear"},
-        {2, "camera_front_left"},
-        {3, "camera_front_right"},
-        {4, "camera_rear_left"},
-        {5, "camera_rear_right"}
-    };
-
     yoloDetector = std::make_unique<YOLO_V8>();
     yoloDetector->classes.push_back("pot"); //只有一个类别
     DL_INIT_PARAM params;
@@ -45,6 +36,22 @@ void DetAruco::init_DetAruco(const ArucoInitParams& params)
     marker_scale_ = params.marker_scale;
     marker_shift_ = params.marker_shift;
     flag_save_yolo_data = params.export_yolo_data;
+
+    int size = params.camera_id_list.size();
+    if((size == params.camera_name_list.size()) && size > 1)
+    {
+        spdlog::info("[DetAruco] 初始化完成, 相机ID列表: {}, 相机名称列表: {}", fmt::join(params.camera_id_list, ", "), fmt::join(params.camera_name_list, ", "));
+
+        for(int i=0;i<size;++i)
+        {
+            cam_id_name_map_[params.camera_id_list[i]] = params.camera_name_list[i];
+        }
+    }
+    else 
+    {
+        spdlog::error("相机ID列表和相机名称列表长度不一致, 相机ID列表长度: {}, 相机名称列表长度: {}", size, params.camera_name_list.size());
+    }
+
     flag_init = true;
 }
 

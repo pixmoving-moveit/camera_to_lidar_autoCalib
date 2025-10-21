@@ -59,10 +59,10 @@ void RclComm::start()
 
     // 使用参数加载PCD文件
     spdlog::info("加载PCD文件:{}", data_path_);
-    extraboard_->load_pcd_file(data_path_ + "/test.pcd");
-    std::vector<PointCloudT> test;
-    extraboard_->extract_points(test);
-    extraboard_->board_register(test, extraboard_->boards);
+    extraboard_->load_pcd_file(data_path_ + "/input.pcd");
+    std::vector<PointCloudT> input;
+    extraboard_->extract_points(input);
+    extraboard_->board_register(input, extraboard_->boards);
 
     cornersmatch_->setBoardPointCloudCenters_Q(extraboard_->boards);    //设置所有检测到的点云标定板
 
@@ -412,8 +412,11 @@ void RclComm::init_parameters()
     this->declare_parameter<std::string>("bbox_topic", "bounding_boxes");
     this->declare_parameter<std::string>("frame_id", "base_link");
     this->declare_parameter<std::string>("cache_directory", "/tmp/calib_cache");
+    this->declare_parameter<std::vector<int>>("camera_list", std::vector<int>{0});
+    this->declare_parameter<std::vector<std::string>>("camera_name_list", std::vector<std::string>{"camera_default"});
     this->declare_parameter<std::vector<int>>("calib_camera_list", std::vector<int>{0});
     this->declare_parameter<int>("export_yolo_data", 0);
+
     
     // 声明算法参数
     this->declare_parameter<std::vector<double>>("algorithm_params.min_point", std::vector<double>{8.3, -4.8, -0.5, 1.0});
@@ -442,7 +445,11 @@ void RclComm::init_parameters()
     cache_directory_ = this->get_parameter("cache_directory").as_string();
     auto list = this->get_parameter("calib_camera_list").as_integer_array();
     calib_camera_list_.assign(list.begin(), list.end());   // 自动转型
-    
+
+    auto camera_list = this->get_parameter("camera_list").as_integer_array();
+    auto camera_name_list = this->get_parameter("camera_name_list").as_string_array();
+
+
     // 获取算法参数值
     auto min_point_vec = this->get_parameter("algorithm_params.min_point").as_double_array();
     auto max_point_vec = this->get_parameter("algorithm_params.max_point").as_double_array();
@@ -462,6 +469,8 @@ void RclComm::init_parameters()
     auto order = this->get_parameter("aruco_params.marker_order").as_integer_array();
     aruco_params_.marker_order.assign(order.begin(), order.end());   // 自动转型
     aruco_params_.export_yolo_data = static_cast<bool>(this->get_parameter("export_yolo_data").as_int());
+    aruco_params_.camera_id_list.assign(camera_list.begin(), camera_list.end());    //;ong int转int
+    aruco_params_.camera_name_list = camera_name_list;
 
     // 创建log文件及初始化
     logger_ = new SPD_LOG(cache_directory_ + "/log");  //必须在参数读取后，创建log文件夹

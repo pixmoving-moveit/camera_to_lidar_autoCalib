@@ -27,7 +27,9 @@ calib_board_node:
     frame_id: "base_link"
 
     # 待标定相机ID列表
-    calib_camera_list: [0, 5]
+    camera_list: [1, 2, 3, 4, 5, 6]
+    camera_name_list: ["camera_front", "camera_rear", "camera_front_left", "camera_front_right", "camera_rear_left", "camera_rear_right"]
+    calib_camera_list: [5]
 
     # 是否输出用于yolo训练的图像素材
     export_yolo_data: 1
@@ -50,6 +52,5 @@ calib_board_node:
       marker_length: 0.51  # 单个Aruco标记的边长（米）
       marker_scale: 2.2     # 外围框放大比例
       marker_shift: 0.2     # 外围框平移比例
-      marker_num: 6
-      marker_order: [5, 1, 4, 6, 3, 2]  # ArUco标记顺序
-
+      marker_num: 4
+      marker_order: [2, 3, 5, 4]  # ArUco标记顺序

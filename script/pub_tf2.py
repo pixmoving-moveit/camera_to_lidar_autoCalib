@@ -1,32 +1,31 @@
 #!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
-from tf2_ros import TransformBroadcaster
+from tf2_ros import StaticTransformBroadcaster           # ← 改动 1
 from geometry_msgs.msg import TransformStamped
 import yaml
-import os
 import math
 from pathlib import Path
 
-class CalibrationTransformPublisher(Node):
+class CalibrationStaticTransformPublisher(Node):
     def __init__(self):
-        super().__init__('calibration_transform_publisher')
-        
-        # 创建 TransformBroadcaster
-        self.tf_broadcaster = TransformBroadcaster(self)
-        
-        # 获取当前文件所在目录
+        super().__init__('calibration_static_transform_publisher')
+
+        # 静态广播器
+        self.static_tf_broadcaster = StaticTransformBroadcaster(self)  # ← 改动 2
+
+        # 读取外参
         current_dir = Path(__file__).parent
-        
-        # 读取yaml文件
-        self.sensor_kit_data = self.load_yaml(current_dir / '../config/extrinsic_parameters/sensor_kit_calibration.yaml')
-        self.sensors_data = self.load_yaml(current_dir / '../config/extrinsic_parameters/sensors_calibration.yaml')
+        self.sensor_kit_data = self.load_yaml(
+            current_dir / '../config/extrinsic_parameters/sensor_kit_calibration.yaml')
+        self.sensors_data = self.load_yaml(
+            current_dir / '../config/extrinsic_parameters/sensors_calibration.yaml')
 
-        # 创建定时器，10Hz发布频率
-        self.timer = self.create_timer(0.1, self.broadcast_transforms)
-        
-        self.get_logger().info('Calibration transform publisher started')
+        # 一次性发布所有静态变换
+        self.publish_static_transforms()                                # ← 改动 3
+        self.get_logger().info('Static calibration transforms published.')
 
+    # ---------- 以下工具函数不变 ----------
     def load_yaml(self, file_path):
         try:
             with open(file_path, 'r') as f:
@@ -40,18 +39,15 @@ class CalibrationTransformPublisher(Node):
         t.header.stamp = self.get_clock().now().to_msg()
         t.header.frame_id = parent_frame
         t.child_frame_id = child_frame
-        
-        # 设置平移
+
         t.transform.translation.x = float(transform_data.get('x', 0.0))
         t.transform.translation.y = float(transform_data.get('y', 0.0))
         t.transform.translation.z = float(transform_data.get('z', 0.0))
-        
-        # 获取欧拉角
-        roll = float(transform_data.get('roll', 0.0))
+
+        roll  = float(transform_data.get('roll',  0.0))
         pitch = float(transform_data.get('pitch', 0.0))
-        yaw = float(transform_data.get('yaw', 0.0))
-        
-        # 将欧拉角转换为四元数
+        yaw   = float(transform_data.get('yaw',   0.0))
+
         cy = math.cos(yaw * 0.5)
         sy = math.sin(yaw * 0.5)
         cp = math.cos(pitch * 0.5)
@@ -63,35 +59,38 @@ class CalibrationTransformPublisher(Node):
         t.transform.rotation.x = sr * cp * cy - cr * sp * sy
         t.transform.rotation.y = cr * sp * cy + sr * cp * sy
         t.transform.rotation.z = cr * cp * sy - sr * sp * cy
-        
         return t
 
-    def broadcast_transforms(self):
+    # ---------- 一次性发布 ----------
+    def publish_static_transforms(self):
         transforms = []
-        
-        # 发布传感器组到base_link的变换
+
         if 'base_link' in self.sensors_data:
             for child_frame, transform_data in self.sensors_data['base_link'].items():
-                transforms.append(self.create_transform_stamped('base_link', child_frame, transform_data))
+                transforms.append(
+                    self.create_transform_stamped('base_link', child_frame, transform_data))
 
-        # 发布传感器组内部各个传感器的变换
         if self.sensor_kit_data:
-            for child_frame, transform_data in self.sensor_kit_data.get('sensor_kit_base_link', {}).items():
-                transforms.append(self.create_transform_stamped('sensor_kit_base_link', child_frame, transform_data))
-        
-        # 一次性发布所有变换
-        self.tf_broadcaster.sendTransform(transforms)
+            for child_frame, transform_data in \
+                    self.sensor_kit_data.get('sensor_kit_base_link', {}).items():
+                transforms.append(
+                    self.create_transform_stamped('sensor_kit_base_link',
+                                                  child_frame, transform_data))
+        # 静态广播器一次性写入 /tf_static
+        self.static_tf_broadcaster.sendTransform(transforms)
+
 
 def main():
     rclpy.init()
-    node = CalibrationTransformPublisher()
+    node = CalibrationStaticTransformPublisher()
     try:
-        rclpy.spin(node)
+        rclpy.spin(node)          # 保持节点存活即可
     except KeyboardInterrupt:
         pass
     finally:
         node.destroy_node()
         rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

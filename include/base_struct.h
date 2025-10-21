@@ -31,6 +31,8 @@ struct ArucoInitParams
     float marker_scale;  // 外围框放大比例
     float marker_shift;  // 外围框平移比例
     int marker_num;
+    std::vector<int> camera_id_list;
+    std::vector<std::string> camera_name_list;
     std::vector<int> marker_order;
     bool export_yolo_data = false;
 };

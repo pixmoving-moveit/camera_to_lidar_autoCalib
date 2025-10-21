@@ -94,7 +94,7 @@ install(DIRECTORY launch/
 install(DIRECTORY config/
   DESTINATION share/${PROJECT_NAME}/config
   FILES_MATCHING PATTERN "*.yaml"
-  PATTERN "*~" EXCLUDE)
+  PATTERN "*.rviz")
 
 # ---------- 15. 把 so 装到 lib 下（可选，方便运行时找） ----------
 install(DIRECTORY ${ONNXRUNTIME_ROOT}/lib/ ${FMT_ROOT}/lib/

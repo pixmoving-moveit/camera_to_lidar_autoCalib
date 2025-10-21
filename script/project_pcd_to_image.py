@@ -258,7 +258,7 @@ def main():
     
     try:
         camera_id = int(sys.argv[1])
-        if camera_id < 0 or camera_id > 5:
+        if camera_id < 0 or camera_id > 6:
             raise ValueError("camera_id必须是0-5之间的整数")
     except ValueError as e:
         print(f"错误: {e}")
@@ -266,12 +266,12 @@ def main():
     
     # 定义图像路径映射
     image_paths = {
-        0: 'camera_front',
-        1: 'camera_rear',
-        2: 'camera_front_left',
-        3: 'camera_front_right',
-        4: 'camera_rear_left',
-        5: 'camera_rear_right'
+        1: 'camera_front',
+        2: 'camera_rear',
+        3: 'camera_front_left',
+        4: 'camera_front_right',
+        5: 'camera_rear_left',
+        6: 'camera_rear_right'
     }
     
     # 获取脚本所在目录的上级目录

@@ -5,8 +5,8 @@
 
 CalibFunc::CalibFunc()
 {
-    camera_params_.resize(6);   // 有6个摄像头
-    board_data_.resize(6);      // 有6个摄像头
+    camera_params_.resize(7);   // 最多有7个摄像头
+    board_data_.resize(7);      // 最多有7个摄像头
 }
 
 void CalibFunc::init_CalibFunc(const std::string& param_path)
@@ -22,7 +22,7 @@ void CalibFunc::readAllParams(const std::string param_path)
 {
     std::string ext_path = param_path + "/extrinsic_parameters/sensor_kit_calibration.yaml";
     
-    for(int i=0;i<6;++i)
+    for(int i=0;i<7;++i)
     {
         std::string intr_path = param_path + "/intrinsic_parameters/camera" + std::to_string(i) + "_params.yaml";
         auto cam_params = read_intrinsicParams(intr_path);
@@ -112,7 +112,7 @@ void CalibFunc::write_Extrinsics()
         throw std::runtime_error("无法打开配置文件: " + ext_path);
     }
 
-    for(int i=0;i<6;++i)
+    for(int i=0;i<7;++i)
     {
         std::string cam_key = "camera" + std::to_string(i) + "/camera_link";
 
