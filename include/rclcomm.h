@@ -110,6 +110,8 @@ private:
     ArucoInitParams aruco_params_;
 
     std::vector<int> calib_camera_list_; // 待标定相机ID列表
+    std::vector<int> camera_id_list_; // 所有相机ID列表
+    std::vector<std::string> camera_name_list_; // 所有相机名称列表
 
 public:
     YAML::Node read_yaml_file(const std::string& file_path);

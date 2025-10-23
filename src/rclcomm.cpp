@@ -60,9 +60,17 @@ void RclComm::start()
     // 使用参数加载PCD文件
     spdlog::info("加载PCD文件:{}", data_path_);
     extraboard_->load_pcd_file(data_path_ + "/input.pcd");
+
+    int check_result = extraboard_->check_orientation(calib_camera_list_, camera_id_list_, camera_name_list_);
+    if(check_result <= 0)
+    {
+        spdlog::error("标定相机列表有问题，不符合前后分组要求");
+        return;
+    }
+
     std::vector<PointCloudT> input;
     extraboard_->extract_points(input);
-    extraboard_->board_register(input, extraboard_->boards);
+    extraboard_->board_register(input, extraboard_->boards, check_result);
 
     cornersmatch_->setBoardPointCloudCenters_Q(extraboard_->boards);    //设置所有检测到的点云标定板
 
@@ -91,16 +99,6 @@ void RclComm::start()
 
         spdlog::info("====>相机标定完成 ID:{}", cam_id);
     }
-
-    // IntrParams intr_params = calibfunc->getIntrParams(5);   //获取相机5的内参
-    // auto detaruco_info = detaruco_->detectArucoMarkers(5, intr_params); //检测相机5拍摄到的Aruco标记
-    // cornersmatch_->setBoardArucoCenters_P(detaruco_info);
-
-    // std::vector<BoardInfo> result;
-    // cornersmatch_->getMatchResult(result);
-
-    // calibfunc->setDataForCalib(5, result);
-    // calibfunc->calibrate(5);
 
 
     calibfunc->write_Extrinsics();  //写入所有相机的外参
@@ -446,8 +444,9 @@ void RclComm::init_parameters()
     auto list = this->get_parameter("calib_camera_list").as_integer_array();
     calib_camera_list_.assign(list.begin(), list.end());   // 自动转型
 
-    auto camera_list = this->get_parameter("camera_list").as_integer_array();
-    auto camera_name_list = this->get_parameter("camera_name_list").as_string_array();
+    auto camera_id_list = this->get_parameter("camera_list").as_integer_array();
+    camera_id_list_.assign(camera_id_list.begin(), camera_id_list.end());   // 自动转型
+    camera_name_list_ = this->get_parameter("camera_name_list").as_string_array();
 
 
     // 获取算法参数值
@@ -469,8 +468,8 @@ void RclComm::init_parameters()
     auto order = this->get_parameter("aruco_params.marker_order").as_integer_array();
     aruco_params_.marker_order.assign(order.begin(), order.end());   // 自动转型
     aruco_params_.export_yolo_data = static_cast<bool>(this->get_parameter("export_yolo_data").as_int());
-    aruco_params_.camera_id_list.assign(camera_list.begin(), camera_list.end());    //;ong int转int
-    aruco_params_.camera_name_list = camera_name_list;
+    aruco_params_.camera_id_list = camera_id_list_;    // long int转int
+    aruco_params_.camera_name_list = camera_name_list_;
 
     // 创建log文件及初始化
     logger_ = new SPD_LOG(cache_directory_ + "/log");  //必须在参数读取后，创建log文件夹

@@ -15,7 +15,7 @@ import numpy as np
 import struct
 import yaml
 import os
-import math
+import sys
 from pathlib import Path
 
 test = True
@@ -23,14 +23,7 @@ test = True
 # ---------- 参数区 ----------
 # 1. 话题名 -> frame_id 映射
 TOPIC_MAP = {
-    "/sensing/lidar/corrected/front_top/points": "lidar_ft_base_link",
-    "/sensing/lidar/corrected/front_right/points": "lidar_fr_base_link",
-    "/sensing/lidar/corrected/front_left/points": "lidar_fl_base_link",
-    # "/sensing/lidar/corrected/rear_top/points": "lidar_rt_base_link",
-    # "/sensing/lidar/corrected/rear_center/points": "lidar_rear_base_link",
-    # "/sensing/lidar/front_top/points": "lidar_ft_base_link",
-    # "/sensing/lidar/front_right/points": "lidar_fr_base_link",
-    # "/sensing/lidar/front_left/points": "lidar_fl_base_link",
+    "/sensing/lidar/concatenated/pointcloud": "base_link",
 }
 TARGET_FRAME = "sensor_kit_base_link"      # 要变换到的目标坐标系
 OUTPUT_PCD   = "/home/pix/code/calibration_ws/src/calibBoard/data/first_frame_raw.pcd"     # 保存文件名
@@ -43,15 +36,16 @@ class MergeCloudsNode(Node):
 
         # 获取当前文件所在目录
         current_dir = Path(__file__).parent
+        # 2. 成员变量
+        self.task_complete = False
         
-
         self.first_frames = {}
         self.subs         = {}
 
         self.tf_buffer   = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
 
-        self.sensor_kit_data = self.load_yaml(current_dir / '../config/extrinsic_parameters/sensor_kit_calibration.yaml')
+        self.sensor_kit_data = self.load_yaml(current_dir / '../config/extrinsic_parameters/sensors_calibration.yaml')
 
         for topic in TOPIC_MAP:
             self.subs[topic] = self.create_subscription(
@@ -92,7 +86,7 @@ class MergeCloudsNode(Node):
         for topic, msg in self.first_frames.items():
             frame_id = TOPIC_MAP[topic]          # 子坐标系名称，如 lidar_fl_base_link
             try:
-                pose = self.sensor_kit_data[TARGET_FRAME][frame_id]
+                pose = self.sensor_kit_data[frame_id][TARGET_FRAME]
                 x, y, z = pose["x"], pose["y"], pose["z"]
                 roll, pitch, yaw = pose["roll"], pose["pitch"], pose["yaw"]
                 self.get_logger().info(f"使用 yaml 位姿：{TARGET_FRAME} -> {frame_id}  平移 [{x}, {y}, {z}]  欧拉角 (radian) [{roll}, {pitch}, {yaw}]")
@@ -107,12 +101,13 @@ class MergeCloudsNode(Node):
             T = np.eye(4)
             T[:3, :3] = R
             T[:3, 3] = [x, y, z]
+            T_inv = np.linalg.inv(T)
 
             # 3. 点云变换
             xyzi = self.pc2_to_xyzi(msg)  # Nx4
             if xyzi.size == 0:
                 continue
-            xyzi[:, :3] = self.transform_points_matrix(xyzi[:, :3], T)
+            xyzi[:, :3] = self.transform_points_matrix(xyzi[:, :3], T_inv)
             merged.append(xyzi)
 
         if not merged:
@@ -123,6 +118,8 @@ class MergeCloudsNode(Node):
         all_points = np.vstack(merged)
         self.save_pcd_ascii_xyzi(all_points, OUTPUT_PCD)
         self.get_logger().info(f"已保存 -> {OUTPUT_PCD}  共 {all_points.shape[0]} 点")
+        self.task_complete = True
+        sys.exit(0)
         rclpy.shutdown()
 
     # ---------- 纯 NumPy 实现 ----------
@@ -224,9 +221,14 @@ def main():
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
-    node.destroy_node()
-    rclpy.shutdown()
-
+    finally:
+        # 确保程序退出
+        if not node.task_complete:
+            node.get_logger().info("程序正在退出...")
+        node.destroy_node()
+        rclpy.shutdown()
+        # 强制退出程序
+        sys.exit(0)
 
 if __name__ == '__main__':
     main()

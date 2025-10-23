@@ -285,8 +285,9 @@ def main():
     extrinsic_file = os.path.join(project_root, 'config', 'extrinsic_parameters', 'sensor_kit_calibration.yaml')
     intrinsic_file = os.path.join(project_root, 'config', 'intrinsic_parameters', f'camera{camera_id}_params.yaml')
     pcd_file = os.path.join(project_root, 'data', 'first_frame_raw.pcd')
+    image_file = os.path.join(project_root, 'data', camera_folder, 'test.png')
     # pcd_file = os.path.join(project_root, 'cache', 'processed_cloud.pcd')
-    image_file = os.path.join(project_root, 'data', camera_folder, 'image_undistort.png')
+    # image_file = os.path.join(project_root, 'data', camera_folder, 'image_undistort.png')
     
     # 检查文件是否存在
     for file_path, file_desc in [(extrinsic_file, '外参配置文件'),

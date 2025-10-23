@@ -90,7 +90,7 @@ public:
 
     
     // 点云处理功能
-    void board_register(std::vector<PointCloudT>& board_pointclouds, std::vector<BoardInfo>& boards);
+    void board_register(std::vector<PointCloudT>& board_pointclouds, std::vector<BoardInfo>& boards, const int& check_result_);
     void extract_points(std::vector<PointCloudT>& extracted_clouds);
     
     // 设置算法参数
@@ -123,6 +123,11 @@ public:
 
     cv::Mat get_template_image() const;
     cv::Mat get_binary_template() const;
+    
+    // 检查标定相机列表是否符合前后分组要求
+    int check_orientation(const std::vector<int>& calib_camera_list,
+                                  const std::vector<int>& camera_id,
+                                  const std::vector<std::string>& camera_name);
 
 private:
     std::string cache_directory_;

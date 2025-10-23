@@ -1,42 +1,52 @@
+board_height: 13
+board_width: 17
+camera_name: test_camera
 image_width: 1920
 image_height: 1080
-camera_name: camera5
 camera_matrix:
   rows: 3
   cols: 3
+  dt: d
   data:
-  - 1014.0966401736
+  - 1013.5092260905
   - 0.0
-  - 962.3994790208
+  - 956.2534904448
   - 0.0
-  - 1013.8103222136
-  - 540.4944931822
+  - 1013.6483857249
+  - 546.815691342
   - 0.0
   - 0.0
   - 1.0
 distortion_model: plumb_bob
 distortion_coefficients:
-  rows: 1
-  cols: 8
+  rows: 14
+  cols: 1
+  dt: d
   data:
-  - 0.2403427625
-  - -0.1928949775
-  - 2.51413e-05
-  - -7.3428e-06
-  - -0.0112465255
-  - 0.6371017416
-  - -0.1975210288
-  - -0.0631625684
+  - 1.6466230395
+  - 0.3838554308
+  - -3.31643e-05
+  - 3.30174e-05
+  - 0.004721856
+  - 2.0452173061
+  - 0.9280063805
+  - 0.0595445391
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
 rectification_matrix:
   rows: 3
   cols: 3
   data:
-  - 487.35858154296875
+  - 1013.5092260905
   - 0.0
-  - 517.1744464523581
+  - 956.2534904448
   - 0.0
-  - 485.6971435546875
-  - 288.4947253932478
+  - 1013.6483857249
+  - 546.815691342
   - 0.0
   - 0.0
   - 1.0
@@ -44,54 +54,17 @@ projection_matrix:
   rows: 3
   cols: 4
   data:
-  - 1014.0966401736
+  - 1013.5092260905
   - 0.0
-  - 962.3994790208
+  - 956.2534904448
   - 0.0
   - 0.0
-  - 1013.8103222136
-  - 540.4944931822
+  - 1013.6483857249
+  - 546.815691342
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   - 0.0
-CameraInfo:
-  sensor_id: AR0233
-  isp_id: GW5200
-  resolution_width: 1920
-  resolution_height: 1080
-  fps: 30
-  image_format: UYVY
-  trigger_mode: TriggerEnable
-  embedded_data: EmbeddedDisable
-  CRC32_1:
-  - 2129337062
-  - 2129337062
-  - true
-LensInfo:
-  field_of_view: 120
-  focal_length: 3.0399999618530273
-  f_number: 2.0
-  manufacturer_id: 85
-  lens_index: 0
-  lens_type: "AA\u955C\u5934"
-  CRC32_1:
-  - 473700164
-  - 473700164
-  - true
-SN:
-  SN: H120UA-H06170579
-  CRC32_1:
-  - 1785492430
-  - 188523112
-  - false
-SerialNumber:
-  year: 255
-  month: 255
-  day: 255
-  serial: 4294967295
-  CRC32_1:
-  - 4294967295
-  - 2162369309
-  - false
+square_size: 50.0
+flags: 16385

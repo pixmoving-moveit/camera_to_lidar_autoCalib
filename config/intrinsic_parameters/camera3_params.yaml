@@ -1,42 +1,52 @@
+board_height: 13
+board_width: 17
+camera_name: test_camera
 image_width: 1920
 image_height: 1080
-camera_name: camera3
 camera_matrix:
   rows: 3
   cols: 3
+  dt: d
   data:
-  - 1013.2822856071
+  - 1016.1289981763
   - 0.0
-  - 962.4140235861
+  - 960.0844246436
   - 0.0
-  - 1013.0535062631
-  - 539.5447996975
+  - 1016.2366640436
+  - 541.6659487469
   - 0.0
   - 0.0
   - 1.0
 distortion_model: plumb_bob
 distortion_coefficients:
-  rows: 1
-  cols: 8
+  rows: 14
+  cols: 1
+  dt: d
   data:
-  - 0.6294489783
-  - -0.0322783667
-  - 3.94756e-05
-  - -3.7104e-06
-  - -0.0076683482
-  - 1.0280586394
-  - 0.1160763724
-  - -0.0307898989
+  - 6.2865366511
+  - 2.8059378474
+  - 5.14077e-05
+  - 7.9158e-06
+  - 0.1107217172
+  - 6.6890198174
+  - 5.1766423432
+  - 0.6924978683
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
 rectification_matrix:
   rows: 3
   cols: 3
   data:
-  - 1.0
+  - 1016.1289981763
   - 0.0
+  - 960.0844246436
   - 0.0
-  - 0.0
-  - 1.0
-  - 0.0
+  - 1016.2366640436
+  - 541.6659487469
   - 0.0
   - 0.0
   - 1.0
@@ -44,54 +54,17 @@ projection_matrix:
   rows: 3
   cols: 4
   data:
-  - 1013.2822856071
+  - 1016.1289981763
   - 0.0
-  - 962.4140235861
+  - 960.0844246436
   - 0.0
   - 0.0
-  - 1013.0535062631
-  - 539.5447996975
+  - 1016.2366640436
+  - 541.6659487469
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   - 0.0
-CameraInfo:
-  sensor_id: AR0233
-  isp_id: GW5200
-  resolution_width: 1920
-  resolution_height: 1080
-  fps: 30
-  image_format: UYVY
-  trigger_mode: TriggerEnable
-  embedded_data: EmbeddedDisable
-  CRC32_1:
-  - 2129337062
-  - 2129337062
-  - true
-LensInfo:
-  field_of_view: 120
-  focal_length: 3.0399999618530273
-  f_number: 2.0
-  manufacturer_id: 85
-  lens_index: 0
-  lens_type: "AA\u955C\u5934"
-  CRC32_1:
-  - 473700164
-  - 473700164
-  - true
-SN:
-  SN: H120UA-H06170690
-  CRC32_1:
-  - 2406832317
-  - 3370901977
-  - false
-SerialNumber:
-  year: 255
-  month: 255
-  day: 255
-  serial: 4294967295
-  CRC32_1:
-  - 4294967295
-  - 2162369309
-  - false
+square_size: 50.0
+flags: 16385

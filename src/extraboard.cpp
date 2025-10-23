@@ -268,7 +268,7 @@ void ExtraBoard::extract_points(std::vector<PointCloudT>& extracted_clouds)
  * - 图像坐标系Y轴方向与点云坐标系相反，因此Y坐标需要翻转。
  * - 仅当点云不为空且成功分割出平面时才会进行投影操作。
  */
-void ExtraBoard::board_register(std::vector<PointCloudT>& board_pointclouds, std::vector<BoardInfo>& boards)
+void ExtraBoard::board_register(std::vector<PointCloudT>& board_pointclouds, std::vector<BoardInfo>& boards, const int& check_result_)
 {
     if (board_pointclouds.size() < 1)
     {
@@ -329,32 +329,54 @@ void ExtraBoard::board_register(std::vector<PointCloudT>& board_pointclouds, std
         spdlog::info("方向判据：{} 法向量修正：{},{},{}", d, plane_normal.x(), plane_normal.y(), plane_normal.z());
 
         // 5. 构建坐标变换矩阵，将平面变换到YOZ平面
-        // 目标：平面法向量对齐到X轴 (1, 0, 0)
-        Eigen::Vector3f x_axis(1, 0, 0);
-        
-        // 计算旋转轴（叉积）
-        Eigen::Vector3f rotation_axis = plane_normal.cross(x_axis);
-        rotation_axis.normalize();
-        
-        // 计算旋转角度（点积）
-        float cos_angle = plane_normal.dot(x_axis);
-        float rotation_angle = std::acos(std::clamp(cos_angle, -1.0f, 1.0f));
-        
-        // 构建旋转矩阵（Rodrigues公式）
         Eigen::Matrix3f rotation_matrix = Eigen::Matrix3f::Identity();
-        if (rotation_angle > 1e-6) // 避免数值误差
-        {
-            Eigen::Matrix3f K; // 反对称矩阵
-            K << 0, -rotation_axis.z(), rotation_axis.y(),
-                rotation_axis.z(), 0, -rotation_axis.x(),
-                -rotation_axis.y(), rotation_axis.x(), 0;
-            
-            rotation_matrix = Eigen::Matrix3f::Identity() + 
-                            std::sin(rotation_angle) * K + 
-                            (1 - std::cos(rotation_angle)) * K * K;
-        }
+        
+        Eigen::Vector3f x_axis(1, 0, 0);
 
-        spdlog::info("旋转角度: {:.2f} 度", rotation_angle * 180.0 / M_PI);
+        if(1 == check_result_)
+        {
+            spdlog::info("当前待标定相机id隶属 前 雷达点云， 执行方案1");
+            // 目标：平面法向量对齐到X轴 (1, 0, 0)    
+            // 计算旋转轴（叉积）
+            Eigen::Vector3f rotation_axis = plane_normal.cross(x_axis);
+            rotation_axis.normalize();
+            
+            // 计算旋转角度（点积）
+            float cos_angle = plane_normal.dot(x_axis);
+            float rotation_angle = std::acos(std::clamp(cos_angle, -1.0f, 1.0f));
+            
+            // 构建旋转矩阵（Rodrigues公式）
+            if (rotation_angle > 1e-6) // 避免数值误差
+            {
+                Eigen::Matrix3f K; // 反对称矩阵
+                K << 0, -rotation_axis.z(), rotation_axis.y(),
+                    rotation_axis.z(), 0, -rotation_axis.x(),
+                    -rotation_axis.y(), rotation_axis.x(), 0;
+                
+                rotation_matrix = Eigen::Matrix3f::Identity() + 
+                                std::sin(rotation_angle) * K + 
+                                (1 - std::cos(rotation_angle)) * K * K;
+            }
+        }
+        else if(2 == check_result_)
+        {
+            spdlog::info("当前待标定相机id隶属 后 雷达点云， 执行方案2");
+            Eigen::Vector3f rot_axis = plane_normal.cross(x_axis).normalized();
+            float cos_ang = plane_normal.dot(x_axis);
+            float ang = std::acos(std::clamp(cos_ang,-1.f,1.f));
+            Eigen::Matrix3f R1 = Eigen::AngleAxisf(ang, rot_axis).toRotationMatrix();
+
+            // 2. 再锁“绕 X 轴的滚转”：把旧 Y 轴转到目标 Y 方向
+            Eigen::Vector3f old_y(0,-1,0);
+            Eigen::Vector3f new_y = R1 * old_y;          // 当前已经转到的方向
+            // 我们希望 new_y 落在 YOZ 平面，即与 (0,-1,0) 夹角最小
+            float roll = std::atan2(new_y.z(), new_y.y());
+            Eigen::Matrix3f R2 = Eigen::AngleAxisf(-roll, x_axis).toRotationMatrix();
+
+            rotation_matrix = R2 * R1;   // 最终矩阵
+        }
+        
+
 
         // 保存变换矩阵用于后续的坐标映射
         img_pc_trans_info.at(idx).rotation_matrix_ = rotation_matrix;
@@ -470,6 +492,55 @@ void ExtraBoard::board_register(std::vector<PointCloudT>& board_pointclouds, std
     
 }
 
+int ExtraBoard::check_orientation(const std::vector<int>& calib_camera_list,
+                                  const std::vector<int>& camera_id,
+                                  const std::vector<std::string>& camera_name)
+{
+    /* -------------- 1. 基本合法性检查 -------------- */
+    if (camera_id.size() != camera_name.size()) {
+        return -1;          // 长度不一致
+    }
+
+    /* -------------- 2. 建立 id->name 映射，并收集 calib_names -------------- */
+    std::unordered_map<int, std::string> id2name;
+    for (size_t i = 0; i < camera_id.size(); ++i) {
+        id2name[camera_id[i]] = camera_name[i];
+    }
+
+    std::vector<std::string> calib_names;
+    calib_names.reserve(calib_camera_list.size());
+
+    for (int cid : calib_camera_list) {
+        auto it = id2name.find(cid);
+        if (it == id2name.end()) {
+            return -2;      // 出现非法 id
+        }
+        calib_names.push_back(it->second);
+    }
+
+    /* -------------- 3. 新增：前后分组判断 -------------- */
+    const std::unordered_set<std::string> front_set = {
+        "camera_front", "camera_rear_left", "camera_rear_right"
+    };
+    const std::unordered_set<std::string> rear_set = {
+        "camera_rear", "camera_front_left", "camera_front_right"
+    };
+
+    bool all_in_front = true;
+    bool all_in_rear  = true;
+
+    for (const auto& name : calib_names) {
+        if (front_set.find(name) == front_set.end()) all_in_front = false;
+        if (rear_set .find(name) == rear_set.end())  all_in_rear  = false;
+        if (!all_in_front && !all_in_rear) break;   // 提前短路
+    }
+
+    if (all_in_front && all_in_rear) return 0;      // 前后都能匹配
+    if (all_in_front)                return 1;      // 仅 front 组
+    if (all_in_rear)                 return 2;      // 仅 rear 组
+
+    return -3;  // 都不满足，业务可自行定义错误码
+}
 
 void ExtraBoard::reset_to_original()
 {
