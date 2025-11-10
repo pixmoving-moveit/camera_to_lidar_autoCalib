@@ -154,7 +154,7 @@ if __name__ == "__main__":
     print(f"已更新pix参数配置文件")
     print(" ")
 
-    for i in range(0, 6):
+    for i in range(0, 7):
         print(f"========检查相机{i}内参========")
         intrinsic_file = os.path.join(target_dir, f"intrinsic_parameters/camera{i}_params.yaml")
         check_camera_intrinsics(intrinsic_file)
