@@ -373,9 +373,11 @@ def main():
         # 投影点云到图像
         print("将点云投影到图像...")
         result_img = project_pcd_to_image(pcd_points, pcd_intensity, R, t, K, dist, img)
+
+        resize_img = cv2.resize(result_img, (1920, 1080))
         
         # 显示结果
-        cv2.imshow(f'Camera{camera_id} 点云投影结果', result_img)
+        cv2.imshow(f'Camera{camera_id} 点云投影结果', resize_img)
         print("按任意键退出...")
         cv2.waitKey(0)
         cv2.destroyAllWindows()
