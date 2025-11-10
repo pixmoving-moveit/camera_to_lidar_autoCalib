@@ -179,19 +179,19 @@ void CalibFunc::calibrate(const int cam_id)
     cv::Mat rvec, tvec;
     auto& cam_params = camera_params_.at(cam_id);
     auto& data_pair = board_data_.at(cam_id);
+
+    // 调用solvePnP进行标定, 计算得到的是sensor_kit_base_link到camera_link的外参
     bool success = cv::solvePnP(data_pair.points_3d_, data_pair.points_2d_, cam_params.intrinsics_.K_, cam_params.intrinsics_.dist_, rvec, tvec, false, cv::SOLVEPNP_EPNP);
-    if (success) 
+    if(success)
     {
-        spdlog::info("[CalibFunc] 相机: {} 标定成功!", cam_id);
-        spdlog::info("rvec: {},{},{}, tvec: {},{},{}", rvec.at<double>(0,0), rvec.at<double>(1,0), rvec.at<double>(2,0),
-            tvec.at<double>(0,0), tvec.at<double>(1,0), tvec.at<double>(2,0));
-        // 提取欧拉角和平移
         cv::Mat R_cv;
         cv::Rodrigues(rvec, R_cv); // R_cv为3x3 CV_64F
         Eigen::Matrix3d R_eigen;
         for(int i=0;i<3;++i)
             for(int j=0;j<3;++j)
                 R_eigen(i,j) = R_cv.at<double>(i,j);
+
+        
         double sy = sqrt(R_eigen(0,0)*R_eigen(0,0) + R_eigen(1,0)*R_eigen(1,0));
         double roll, pitch, yaw;
         if (sy > 1e-6) {
@@ -203,17 +203,86 @@ void CalibFunc::calibrate(const int cam_id)
             pitch = atan2(-R_eigen(2,0), sy);
             yaw = 0;
         }
+        ExtParams ext_test;
+        ext_test.x = tvec.at<double>(0,0);
+        ext_test.y = tvec.at<double>(1,0);
+        ext_test.z = tvec.at<double>(2,0);
+        ext_test.roll = roll;
+        ext_test.pitch = pitch;
+        ext_test.yaw = yaw;
+        std::cout<<"x: "<<ext_test.x<<", y: "<<ext_test.y<<", z: "<<ext_test.z<<std::endl;
+        std::cout<<"roll: "<<ext_test.roll<<", pitch: "<<ext_test.pitch<<", yaw: "<<ext_test.yaw<<std::endl;
+
+        /*  1. 把 cv 的 rvec/tvec 转到 Eigen *************************/
+        Eigen::Vector3d rvec_eig(rvec.at<double>(0), rvec.at<double>(1), rvec.at<double>(2));
+        Eigen::Vector3d tvec_eig(tvec.at<double>(0), tvec.at<double>(1), tvec.at<double>(2));
+
+        Eigen::AngleAxisd aa(rvec_eig.norm(), rvec_eig.normalized());
+        Eigen::Isometry3d T_o2c = Eigen::Isometry3d::Identity();   // Object -> Camera
+        T_o2c.linear()  = aa.toRotationMatrix();
+        T_o2c.translation() = tvec_eig;
+
+        /*  2. 取逆 -> Camera -> Object (即 camera_link -> sensor_kit_base_link) */
+        Eigen::Isometry3d T_c2o = T_o2c.inverse();   // 这就是我们要的外参
+
+        /*  3. 转成 xyzrpy ****************************************************/
+        Eigen::Vector3d    xyz  = T_c2o.translation();
+        Eigen::Vector3d    rpy  = T_c2o.rotation().eulerAngles(2, 1, 0);   // roll, pitch, yaw
+
         ExtParams ext_;
-        ext_.x = tvec.at<double>(0,0);
-        ext_.y = tvec.at<double>(1,0);
-        ext_.z = tvec.at<double>(2,0);
-        ext_.roll = roll;
-        ext_.pitch = pitch;
-        ext_.yaw = yaw;
+        ext_.x = xyz(0);
+        ext_.y = xyz(1);
+        ext_.z = xyz(2);
+        ext_.roll = rpy(2);
+        ext_.pitch = rpy(1);
+        ext_.yaw = rpy(0);
 
         cam_params.extrinsics_ = ext_;
 
-    } else {
+        spdlog::info("[CalibFunc] 相机: {} 标定成功! "
+             "camera_link -> sensor_kit_base_link: "
+             "xyz=[{:.4f}, {:.4f}, {:.4f}]  rpy=[{:.4f}, {:.4f}, {:.4f}] (rad)",
+             cam_id, ext_.x, ext_.y, ext_.z,
+             ext_.roll, ext_.pitch, ext_.yaw);
+    }
+    
+    // if (success) 
+    // {
+    //     spdlog::info("[CalibFunc] 相机: {} 标定成功!", cam_id);
+    //     spdlog::info("rvec: {},{},{}, tvec: {},{},{}", rvec.at<double>(0,0), rvec.at<double>(1,0), rvec.at<double>(2,0),
+    //         tvec.at<double>(0,0), tvec.at<double>(1,0), tvec.at<double>(2,0));
+    //     // 提取欧拉角和平移
+    //     cv::Mat R_cv;
+    //     cv::Rodrigues(rvec, R_cv); // R_cv为3x3 CV_64F
+    //     Eigen::Matrix3d R_eigen;
+    //     for(int i=0;i<3;++i)
+    //         for(int j=0;j<3;++j)
+    //             R_eigen(i,j) = R_cv.at<double>(i,j);
+
+        
+    //     double sy = sqrt(R_eigen(0,0)*R_eigen(0,0) + R_eigen(1,0)*R_eigen(1,0));
+    //     double roll, pitch, yaw;
+    //     if (sy > 1e-6) {
+    //         roll = atan2(R_eigen(2,1), R_eigen(2,2));
+    //         pitch = atan2(-R_eigen(2,0), sy);
+    //         yaw = atan2(R_eigen(1,0), R_eigen(0,0));
+    //     } else {
+    //         roll = atan2(-R_eigen(1,2), R_eigen(1,1));
+    //         pitch = atan2(-R_eigen(2,0), sy);
+    //         yaw = 0;
+    //     }
+    //     ExtParams ext_;
+    //     ext_.x = tvec.at<double>(0,0);
+    //     ext_.y = tvec.at<double>(1,0);
+    //     ext_.z = tvec.at<double>(2,0);
+    //     ext_.roll = roll;
+    //     ext_.pitch = pitch;
+    //     ext_.yaw = yaw;
+
+    //     cam_params.extrinsics_ = ext_;
+
+    // }
+     else {
         spdlog::error("[CalibFunc] 相机: {} 标定失败!", cam_id);
     }
 }

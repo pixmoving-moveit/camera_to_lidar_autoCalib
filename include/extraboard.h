@@ -44,6 +44,7 @@ struct AlgorithmParams
     float min_size; // 最小尺寸（米）
     float max_size; // 最大尺寸（米）
     float aspect_ratio_threshold; // 长宽比阈值
+    float bracket_width; // 支架过滤宽度（米）
     
     // base_link到sensor_kit_base_link的变换矩阵
     Eigen::Matrix4f transform_base_to_sensor_kit; // 4x4变换矩阵

@@ -422,6 +422,9 @@ void RclComm::init_parameters()
     this->declare_parameter<double>("algorithm_params.min_size", 0.5);
     this->declare_parameter<double>("algorithm_params.max_size", 1.1);
     this->declare_parameter<double>("algorithm_params.aspect_ratio_threshold", 1.2);
+    this->declare_parameter<double>("algorithm_params.bracket_width", 0.15); // 支架宽度（米）
+
+
 
     // 声明Aruco参数
     this->declare_parameter<double>("aruco_params.marker_length", 0.637); // 单个Aruco标记的边长（米）
@@ -458,6 +461,9 @@ void RclComm::init_parameters()
     algorithm_params_.min_size = static_cast<float>(this->get_parameter("algorithm_params.min_size").as_double());
     algorithm_params_.max_size = static_cast<float>(this->get_parameter("algorithm_params.max_size").as_double());
     algorithm_params_.aspect_ratio_threshold = static_cast<float>(this->get_parameter("algorithm_params.aspect_ratio_threshold").as_double());
+    algorithm_params_.bracket_width = static_cast<float>(this->get_parameter("algorithm_params.bracket_width").as_double()); // 支架宽度（米）
+
+
 
     // 获取Aruco参数值
     aruco_params_.path = data_path_;

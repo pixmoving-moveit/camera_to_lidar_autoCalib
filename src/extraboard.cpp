@@ -520,7 +520,7 @@ int ExtraBoard::check_orientation(const std::vector<int>& calib_camera_list,
 
     /* -------------- 3. 新增：前后分组判断 -------------- */
     const std::unordered_set<std::string> front_set = {
-        "camera_front", "camera_rear_left", "camera_rear_right"
+        "camera_front_4k", "camera_front", "camera_rear_left", "camera_rear_right"
     };
     const std::unordered_set<std::string> rear_set = {
         "camera_rear", "camera_front_left", "camera_front_right"
@@ -1354,8 +1354,8 @@ bool ExtraBoard::apply_scaffold_filter(
             PointT slice_min, slice_max;
             pcl::getMinMax3D(*slice, slice_min, slice_max);
 
-            // 宽度 > 25 cm 保留，其余视为支架丢弃
-            if (dist_x_y(slice_min, slice_max) > 0.25f)
+            // 宽度 > bracket_width + 10 cm 保留，其余视为支架丢弃
+            if (dist_x_y(slice_min, slice_max) > (algorithm_params_.bracket_width + 0.1f))
                 *filtered_cloud += *slice;
         }
 

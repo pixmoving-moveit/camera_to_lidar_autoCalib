@@ -10,17 +10,7 @@
 
 DetAruco::DetAruco(/* args */)
 {
-    yoloDetector = std::make_unique<YOLO_V8>();
-    yoloDetector->classes.push_back("pot"); //只有一个类别
-    DL_INIT_PARAM params;
-    params.rectConfidenceThreshold = 0.6;
-    params.iouThreshold = 0.4;
-    params.modelPath = "/home/pix/code/calibration_ws/src/calibBoard/config/best.onnx";
-    params.imgSize = { 640, 640 };
-    params.modelType = YOLO_DETECT_V8;
-    params.cudaEnable = false;
-    yoloDetector->CreateSession(params);
-    
+    yoloDetector = std::make_unique<YOLO_V8>();   
 
 }
 
@@ -36,6 +26,18 @@ void DetAruco::init_DetAruco(const ArucoInitParams& params)
     marker_scale_ = params.marker_scale;
     marker_shift_ = params.marker_shift;
     flag_save_yolo_data = params.export_yolo_data;
+
+
+    yoloDetector->classes.push_back("pot"); //只有一个类别
+    DL_INIT_PARAM params_yolo;
+    params_yolo.rectConfidenceThreshold = 0.6;
+    params_yolo.iouThreshold = 0.4;
+    params_yolo.modelPath = image_path_ + "/../config/best.onnx";
+    params_yolo.imgSize = { 640, 640 };
+    params_yolo.modelType = YOLO_DETECT_V8;
+    params_yolo.cudaEnable = false;
+    yoloDetector->CreateSession(params_yolo);
+
 
     int size = params.camera_id_list.size();
     if((size == params.camera_name_list.size()) && size > 1)

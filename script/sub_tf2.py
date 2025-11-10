@@ -73,7 +73,7 @@ class TF2Listener(Node):
 
 def main():
     rclpy.init()
-    parent_frame = 'base_link'  # 修改为你的父坐标系
+    parent_frame = 'gnss_link'  # 修改为你的父坐标系
     child_frame = 'lidar_fr_base_link'  # 修改为你的子坐标系
     node = TF2Listener(parent_frame, child_frame)
     try:

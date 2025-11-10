@@ -47,26 +47,31 @@ camera_to_lidar_autoCalib/
 ## 核心模块
 
 ### 1. 标定功能 (CalibFunc)
+
 - 负责相机内参和外参的计算
 - 支持多相机标定
 - 实现标定结果的保存和加载
 
 ### 2. ArUco标记检测 (detaruco)
+
 - 基于OpenCV的ArUco标记检测
 - 支持YOLO模型加速检测
 - 实现标定板的快速识别
 
 ### 3. 角点匹配 (CornersMatch)
+
 - 使用匈牙利算法进行最优匹配
 - 支持3D点云与2D图像的角点对应
 - 提供精确的匹配结果
 
 ### 4. 点云处理 (ExtraBoard)
+
 - 支持多种点云滤波方法：体素滤波、统计异常值移除、直通滤波
 - 点云分割和聚类
 - PCL与ROS2消息格式转换
 
 ### 5. ROS2通信 (RclComm)
+
 - 继承自rclcpp::Node
 - 管理点云发布和订阅
 - 处理传感器数据同步
@@ -74,6 +79,7 @@ camera_to_lidar_autoCalib/
 ## 编译和运行
 
 ### 环境要求
+
 - ROS2 Humble
 - PCL (Point Cloud Library)
 - OpenCV 4.x
@@ -83,8 +89,8 @@ camera_to_lidar_autoCalib/
 - onnxruntime (用于YOLO模型)
 
 ### 编译
-```bash
 
+```bash
 # 编译项目
 cd ~/calibration_ws
 colcon build --packages-select calib_board
@@ -94,13 +100,16 @@ source install/setup.bash
 ```
 
 ### 运行
+
 ```bash
 # 使用launch文件
 ros2 launch calib_board calib_board.launch.py
 ```
 
 ## 配置说明
+
 系统配置文件位于`config/calib_board_config.yaml`，主要配置项包括：
+
 - 传感器参数配置
 - 标定板参数设置
 - 算法参数调整
@@ -109,14 +118,17 @@ ros2 launch calib_board calib_board.launch.py
 ## 话题接口
 
 ### 订阅话题
+
 - 相机图像话题
 - 激光雷达点云话题
 
 ### 发布话题
+
 - `/pointcloud` (sensor_msgs/PointCloud2): 处理后的点云数据
 - 标定结果相关话题
 
 ## 使用流程
+
 1. 准备标定板（带有ArUco标记的标定板）
 2. 确保相机和激光雷达正确安装并能够获取数据
 3. 启动标定程序
@@ -125,6 +137,7 @@ ros2 launch calib_board calib_board.launch.py
 6. 保存标定结果用于后续使用
 
 ## 注意事项
+
 - 标定过程中确保标定板可见且光照条件良好
 - 建议采集多个不同位置和角度的数据以提高标定精度
 - 标定结果将保存在配置的路径下，可用于后续数据融合应用

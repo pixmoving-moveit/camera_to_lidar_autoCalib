@@ -4,6 +4,7 @@ import yaml
 import sys
 import os
 import struct
+from scipy.spatial.transform import Rotation as R
 
 
 def read_pcd_xyz_intensity(filename):
@@ -139,6 +140,12 @@ def load_camera_intrinsics(intrinsic_file):
     
     return K, dist
 
+def homogeneous_to_xyzrpy(T):
+    """从 4x4 齐次矩阵中提取 [x, y, z, roll, pitch, yaw]"""
+    x, y, z = T[:3, 3]
+    rot = R.from_matrix(T[:3, :3])
+    roll, pitch, yaw = rot.as_euler('xyz', degrees=False)
+    return [x, y, z, roll, pitch, yaw]
 
 def load_camera_extrinsics(extrinsic_file, camera_id):
     """加载相机外参"""
@@ -156,31 +163,71 @@ def load_camera_extrinsics(extrinsic_file, camera_id):
     x, y, z = extrinsics['x'], extrinsics['y'], extrinsics['z']
     roll, pitch, yaw = extrinsics['roll'], extrinsics['pitch'], extrinsics['yaw']
     
+    print(f"相机 {camera_id} 外参: x={x:.4f}, y={y:.4f}, z={z:.4f}, roll={roll:.4f}, pitch={pitch:.4f}, yaw={yaw:.4f}")
+    
     # 将欧拉角转换为旋转矩阵
+    # def euler_to_rotation_matrix(roll, pitch, yaw):
+    #     """欧拉角转旋转矩阵（ZYX顺序）"""
+    #     cos_r, sin_r = np.cos(roll), np.sin(roll)
+    #     cos_p, sin_p = np.cos(pitch), np.sin(pitch)
+    #     cos_y, sin_y = np.cos(yaw), np.sin(yaw)
+        
+    #     R_x = np.array([[1, 0, 0],
+    #                    [0, cos_r, -sin_r],
+    #                    [0, sin_r, cos_r]])
+        
+    #     R_y = np.array([[cos_p, 0, sin_p],
+    #                    [0, 1, 0],
+    #                    [-sin_p, 0, cos_p]])
+        
+    #     R_z = np.array([[cos_y, -sin_y, 0],
+    #                    [sin_y, cos_y, 0],
+    #                    [0, 0, 1]])
+        
+    #     return R_z @ R_y @ R_x
+    
+    # R = euler_to_rotation_matrix(roll, pitch, yaw)
+    # t = np.array([x, y, z], dtype=np.float32)
+    
+    # return R, t
+    # 欧拉角(ZYX) -> 旋转矩阵
     def euler_to_rotation_matrix(roll, pitch, yaw):
-        """欧拉角转旋转矩阵（ZYX顺序）"""
-        cos_r, sin_r = np.cos(roll), np.sin(roll)
-        cos_p, sin_p = np.cos(pitch), np.sin(pitch)
-        cos_y, sin_y = np.cos(yaw), np.sin(yaw)
-        
-        R_x = np.array([[1, 0, 0],
-                       [0, cos_r, -sin_r],
-                       [0, sin_r, cos_r]])
-        
-        R_y = np.array([[cos_p, 0, sin_p],
-                       [0, 1, 0],
-                       [-sin_p, 0, cos_p]])
-        
-        R_z = np.array([[cos_y, -sin_y, 0],
-                       [sin_y, cos_y, 0],
-                       [0, 0, 1]])
-        
+        cr, sr = np.cos(roll),  np.sin(roll)
+        cp, sp = np.cos(pitch), np.sin(pitch)
+        cy, sy = np.cos(yaw),   np.sin(yaw)
+
+        R_x = np.array([[1,  0,   0],
+                        [0, cr, -sr],
+                        [0, sr,  cr]])
+
+        R_y = np.array([[cp,  0, sp],
+                        [0,   1,  0],
+                        [-sp, 0, cp]])
+
+        R_z = np.array([[cy, -sy, 0],
+                        [sy,  cy, 0],
+                        [0,    0, 1]])
         return R_z @ R_y @ R_x
-    
+
     R = euler_to_rotation_matrix(roll, pitch, yaw)
-    t = np.array([x, y, z], dtype=np.float32)
-    
-    return R, t
+    t = np.array([x, y, z], dtype=np.float64).reshape(3, 1)
+
+    # 组装 4×4 齐次矩阵
+    T = np.eye(4, dtype=np.float64)
+    T[:3, :3] = R
+    T[:3, 3]  = t.squeeze()
+
+    # 求逆
+    T_inv = np.linalg.inv(T)
+
+    xyzrpy_inv = homogeneous_to_xyzrpy(T_inv)
+    print(f"相机 {camera_id} 外参逆: x={xyzrpy_inv[0]:.4f}, y={xyzrpy_inv[1]:.4f}, z={xyzrpy_inv[2]:.4f}, roll={xyzrpy_inv[3]:.4f}, pitch={xyzrpy_inv[4]:.4f}, yaw={xyzrpy_inv[5]:.4f}")
+
+    # 提取逆后的 R 和 t
+    R_inv = T_inv[:3, :3]
+    t_inv = T_inv[:3, 3]
+
+    return R_inv, t_inv
 
 
 def project_pcd_to_image(pcd_points, pcd_intensity, R, t, K, dist, img):
@@ -246,14 +293,15 @@ def project_pcd_to_image(pcd_points, pcd_intensity, R, t, K, dist, img):
 def main():
     if len(sys.argv) != 2:
         print("使用方法: python project_pcd_to_image.py <camera_id>")
-        print("camera_id: 0-5的整数")
+        print("camera_id: 0-6的整数")
         print("参数说明:")
-        print("    0: camera_front")
-        print("    1: camera_rear")
-        print("    2: camera_front_left")
-        print("    3: camera_front_right")
-        print("    4: camera_rear_left")
-        print("    5: camera_rear_right")
+        print("    0: camera_front_4k")
+        print("    1: camera_front")
+        print("    2: camera_rear")
+        print("    3: camera_front_left")
+        print("    4: camera_front_right")
+        print("    5: camera_rear_left")
+        print("    6: camera_rear_right")
         sys.exit(1)
     
     try:
@@ -266,6 +314,7 @@ def main():
     
     # 定义图像路径映射
     image_paths = {
+        0: 'camera_front_4k',
         1: 'camera_front',
         2: 'camera_rear',
         3: 'camera_front_left',
@@ -284,10 +333,10 @@ def main():
     # 构建文件路径
     extrinsic_file = os.path.join(project_root, 'config', 'extrinsic_parameters', 'sensor_kit_calibration.yaml')
     intrinsic_file = os.path.join(project_root, 'config', 'intrinsic_parameters', f'camera{camera_id}_params.yaml')
-    pcd_file = os.path.join(project_root, 'data', 'first_frame_raw.pcd')
-    image_file = os.path.join(project_root, 'data', camera_folder, 'test.png')
-    # pcd_file = os.path.join(project_root, 'cache', 'processed_cloud.pcd')
-    # image_file = os.path.join(project_root, 'data', camera_folder, 'image_undistort.png')
+    # pcd_file = os.path.join(project_root, 'data', 'first_frame_raw.pcd')
+    # image_file = os.path.join(project_root, 'data', camera_folder, 'test.png')
+    pcd_file = os.path.join(project_root, 'cache', 'processed_cloud.pcd')
+    image_file = os.path.join(project_root, 'data', camera_folder, 'image_undistort.png')
     
     # 检查文件是否存在
     for file_path, file_desc in [(extrinsic_file, '外参配置文件'),
