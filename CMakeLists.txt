@@ -23,11 +23,14 @@ find_package(OpenCV REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+set(Ceres_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/ceres/lib/cmake/Ceres")
+find_package(Ceres REQUIRED)
 
 # ---------- 4. 第三方库路径 ----------
 set(ONNXRUNTIME_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/lib/onnxruntime-linux-x64")
 set(FMT_ROOT         "${CMAKE_CURRENT_SOURCE_DIR}/lib/fmt")   # 你自己编译的 fmt
 set(SPDLOG_ROOT      "${CMAKE_CURRENT_SOURCE_DIR}/lib/spdlog") # 头文件即可
+set(CERES_ROOT      "${CMAKE_CURRENT_SOURCE_DIR}/lib/ceres")
 
 include_directories(SYSTEM ${ONNXRUNTIME_ROOT}/include)
 
@@ -80,6 +83,7 @@ target_link_libraries(calib_board_node
   ${PCL_LIBRARIES}
   ${OpenCV_LIBS}
   yaml-cpp
+  Ceres::ceres
 )
 
 # ---------- 12. 安装可执行文件 ----------

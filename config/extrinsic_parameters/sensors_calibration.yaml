@@ -1,12 +1,11 @@
 base_link:
-  # lidar
   sensor_kit_base_link:
-    x: 1.51
-    y: 0.00
-    z: 2.0
-    roll: 0.00
-    pitch: 0.0
-    yaw: 0.015
+    x: 1.5248206520080567
+    y: 0
+    z: 1.9032991079597825
+    roll: -0.0010809596860781312
+    pitch: -0.0010034576989710331
+    yaw: -0.0218
   # millimeter wave
   front_radar_link:
     x: 1.2

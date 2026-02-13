@@ -306,7 +306,7 @@ def main():
     
     try:
         camera_id = int(sys.argv[1])
-        if camera_id < 0 or camera_id > 6:
+        if camera_id <= 0 or camera_id > 6:
             raise ValueError("camera_id必须是0-5之间的整数")
     except ValueError as e:
         print(f"错误: {e}")
@@ -322,6 +322,14 @@ def main():
         5: 'camera_rear_left',
         6: 'camera_rear_right'
     }
+    # image_paths = {
+    #     0: 'camera_front',
+    #     1: 'camera_rear',
+    #     2: 'camera_front_left',
+    #     3: 'camera_front_right',
+    #     4: 'camera_rear_left',
+    #     5: 'camera_rear_right'
+    # }
     
     # 获取脚本所在目录的上级目录
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -373,11 +381,9 @@ def main():
         # 投影点云到图像
         print("将点云投影到图像...")
         result_img = project_pcd_to_image(pcd_points, pcd_intensity, R, t, K, dist, img)
-
-        resize_img = cv2.resize(result_img, (1920, 1080))
         
         # 显示结果
-        cv2.imshow(f'Camera{camera_id} 点云投影结果', resize_img)
+        cv2.imshow(f'Camera{camera_id} 点云投影结果', result_img)
         print("按任意键退出...")
         cv2.waitKey(0)
         cv2.destroyAllWindows()

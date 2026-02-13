@@ -1,0 +1,174 @@
+sensors_params:
+  robobus_ground_truth: robobus_sensors.yaml
+  sensors_params_path: /home/pix/code/calibration_ws/src/calibBoard/config
+gt_sensors_to_front:
+  - camera_front
+  - camera_rear_left
+  - camera_rear_right
+gt_sensors_to_rear:
+  - camera_rear
+  - camera_front_left
+  - camera_front_right
+key_map:
+  camera_front: camera1/camera_link
+  camera_front_left: camera3/camera_link
+  camera_front_right: camera4/camera_link
+  camera_rear: camera2/camera_link
+  camera_rear_left: camera5/camera_link
+  camera_rear_right: camera6/camera_link
+origin:
+  base_link:
+    x: -1.51
+    y: 0.0
+    z: 0.0
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+  front_base:
+    x: 1.51
+    y: 0.0
+    z: 0.0
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+  compass:
+    x: -1.3
+    y: 0.204
+    z: 0.291
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+  antenna_location:
+    x: -0.746
+    y: 0.0
+    z: 1.852
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+  antenna_orientation:
+    x: 0.746
+    y: 0.0
+    z: 1.852
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+  camera_front:
+    x: 1.82
+    y: 0.045
+    z: 0.759
+    roll: 1.5711966682163214
+    pitch: 3.1277954446236036
+    yaw: 1.5996814345244954
+  camera_front_left:
+    x: 1.091
+    y: 0.9255
+    z: 1.342
+    roll: -1.8672209744692088
+    pitch: -0.013385528116324213
+    yaw: 0.88728523623325739
+  camera_front_right:
+    x: 1.091
+    y: -0.9255
+    z: 1.342
+    roll: -1.8782621647304973
+    pitch: 0.010051253960745478
+    yaw: 2.3236884626152219
+  camera_rear:
+    x: -1.82
+    y: -0.045
+    z: 0.759
+    roll: -1.5739089832677593
+    pitch: 0.0074881367389831414
+    yaw: 1.5873497254107798
+  camera_rear_left:
+    x: -1.091
+    y: 0.9255
+    z: 1.342
+    roll: 1.2796543664556084
+    pitch: 3.1331430832464813
+    yaw: 2.3396252769770696
+  camera_rear_right:
+    x: -1.091
+    y: -0.9255
+    z: 1.342
+    roll: 1.2598299156178161
+    pitch: 3.124145122053847
+    yaw: 0.84686543582851748
+  lidar_front_top:
+    x: 0.939
+    y: 0.0
+    z: 1.818
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+  lidar_front_left:
+    x: 1.175
+    y: 0.887
+    z: 1.324
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+  lidar_front_right:
+    x: 1.175
+    y: -0.887
+    z: 1.324
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+  lidar_rear_top:
+    x: -0.939
+    y: 0.0
+    z: 1.818
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+  lidar_rear_center:
+    x: 1.883
+    y: 0.0
+    z: 0.395
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+sensor_kit_base_link:
+  camera1/camera_link:
+    x: 1.7616398426774773
+    y: 0.054999999299105796
+    z: -1.1424378507232671
+    roll: 1.5711966682163214
+    pitch: 3.1277954446236036
+    yaw: 1.5996814345244954
+  camera3/camera_link:
+    x: 1.1082117350869445
+    y: 0.90575599558435693
+    z: -0.47880005445259499
+    roll: -1.8672209744692088
+    pitch: -0.013385528116324213
+    yaw: 0.88728523623325739
+  camera4/camera_link:
+    x: 1.1082117350869445
+    y: -0.94524400441564305
+    z: -0.47880005445259499
+    roll: -1.8782621647304973
+    pitch: 0.010051253960745478
+    yaw: 2.3236884626152219
+  camera2/camera_link:
+    x: -1.8027882649130555
+    y: -0.064744004415643097
+    z: -1.0618000544525952
+    roll: -1.5739089832677593
+    pitch: 0.0074881367389831414
+    yaw: 1.5873497254107798
+  camera5/camera_link:
+    x: -1.1493601573225227
+    y: 0.93549999929910577
+    z: -0.55943785072326691
+    roll: 1.2796543664556084
+    pitch: 3.1331430832464813
+    yaw: 2.3396252769770696
+  camera6/camera_link:
+    x: -1.1493601573225227
+    y: -0.91550000070089421
+    z: -0.55943785072326691
+    roll: 1.2598299156178161
+    pitch: 3.124145122053847
+    yaw: 0.84686543582851748

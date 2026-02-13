@@ -2,16 +2,19 @@
 calib_board_node:
   ros__parameters:
     # 点云文件路径
-    data_path: "/home/ipc/pix/calibration_new/calib_data/data"
+    data_path: "/home/pix/code/calibration_ws/src/calibBoard/data"
     
     # 模板图像文件路径
-    template_image_path: "/home/ipc/pix/calibration_new/calib_data/config/template.png"
+    template_image_path: "/home/pix/code/calibration_ws/src/calibBoard/data/template.png"
 
     # 缓存文件路径
-    cache_directory: "/home/ipc/pix/calibration_new/calib_data/cache"
+    cache_directory: "/home/pix/code/calibration_ws/src/calibBoard/cache"
 
     # 外参文件路径
-    parameters_path: "/home/ipc/pix/calibration_new/calib_data/config"
+    parameters_path: "/home/pix/code/calibration_ws/src/calibBoard/config"
+
+    # 外参文件路径（初始值）
+    parameters_path_gt: "/home/pix/code/calibration_ws/src/calibBoard/config/sensor_kit_calibration_gt.yaml"
 
     # 发布频率 (Hz)
     publish_frequency: 1.0
@@ -26,16 +29,19 @@ calib_board_node:
     # 坐标系名称
     frame_id: "base_link"
 
-    # 待标定相机ID列表
+     # 待标定相机ID列表
     camera_list: [0, 1, 2, 3, 4, 5, 6]
-    camera_name_list: ["camera_front_4k","camera_front", "camera_rear", "camera_front_left", "camera_front_right", "camera_rear_left", "camera_rear_right"]
-    calib_camera_list: [2]
+    camera_name_list: ["camera_front_4k", "camera_front", "camera_rear", "camera_front_left", "camera_front_right", "camera_rear_left", "camera_rear_right"]
+    calib_camera_list: [6]
 
     # 是否输出用于yolo训练的图像素材
     export_yolo_data: 0
 
     # 算法参数
     algorithm_params:
+      # 算法选择
+      algorithm: "ceres_restrain"  # "ceres" / "ceres_restrain" / "epnp"
+
       # 点云过滤范围
       min_point: [-10.0, -100.0, -40.0, 1.0]  # [x, y, z, w]
       max_point: [25.0, 100.0, 40.0, 1.0]   # [x, y, z, w]
@@ -54,8 +60,6 @@ calib_board_node:
     aruco_params:
       marker_length: 0.51  # 单个Aruco标记的边长（米）
       marker_scale: 2.2     # 外围框放大比例
-      marker_shift: 0.2     # 外围框平移比例
-      marker_num: 5
-      marker_order: [10,3,6,8,5]  # ArUco标记顺序
-      # marker_order: [3, 7, 8, 4]  # ArUco标记顺序
-      #marker_order: [9,7,4,5,3,8,10,6]  # ArUco标记顺序
+      marker_shift: 0.15     # 外围框平移比例
+      marker_num: 4
+      marker_order: [5, 1, 4, 2]  # ArUco标记顺序

@@ -268,6 +268,7 @@ void ExtraBoard::extract_points(std::vector<PointCloudT>& extracted_clouds)
  * - 图像坐标系Y轴方向与点云坐标系相反，因此Y坐标需要翻转。
  * - 仅当点云不为空且成功分割出平面时才会进行投影操作。
  */
+
 void ExtraBoard::board_register(std::vector<PointCloudT>& board_pointclouds, std::vector<BoardInfo>& boards, const int& check_result_)
 {
     if (board_pointclouds.size() < 1)
@@ -365,6 +366,9 @@ void ExtraBoard::board_register(std::vector<PointCloudT>& board_pointclouds, std
             float cos_ang = plane_normal.dot(x_axis);
             float ang = std::acos(std::clamp(cos_ang,-1.f,1.f));
             Eigen::Matrix3f R1 = Eigen::AngleAxisf(ang, rot_axis).toRotationMatrix();
+            std::cout<<"check angle:"<<std::endl;
+            std::cout<<"ang:"<<ang<<std::endl;
+            std::cout<<"R1:"<<R1<<std::endl;
 
             // 2. 再锁“绕 X 轴的滚转”：把旧 Y 轴转到目标 Y 方向
             Eigen::Vector3f old_y(0,-1,0);
@@ -491,6 +495,7 @@ void ExtraBoard::board_register(std::vector<PointCloudT>& board_pointclouds, std
     spdlog::info("-----------点云平面提取和投影完成-----------");
     
 }
+
 
 int ExtraBoard::check_orientation(const std::vector<int>& calib_camera_list,
                                   const std::vector<int>& camera_id,

@@ -95,11 +95,10 @@ void RclComm::start()
         cornersmatch_->getMatchResult(result);
 
         calibfunc->setDataForCalib(cam_id, result);
-        calibfunc->calibrate(cam_id);
+        calibfunc->calibrate(cam_id, algorithm_params_.algorithm);   //这里传入algorithm_params_
 
         spdlog::info("====>相机标定完成 ID:{}", cam_id);
     }
-
 
     calibfunc->write_Extrinsics();  //写入所有相机的外参
 
@@ -423,6 +422,7 @@ void RclComm::init_parameters()
     this->declare_parameter<double>("algorithm_params.max_size", 1.1);
     this->declare_parameter<double>("algorithm_params.aspect_ratio_threshold", 1.2);
     this->declare_parameter<double>("algorithm_params.bracket_width", 0.15); // 支架宽度（米）
+    this->declare_parameter<std::string>("algorithm_params.algorithm", "ceres"); // "ceres" / "ceres_restrain" / "epnp"
 
 
 
@@ -462,6 +462,7 @@ void RclComm::init_parameters()
     algorithm_params_.max_size = static_cast<float>(this->get_parameter("algorithm_params.max_size").as_double());
     algorithm_params_.aspect_ratio_threshold = static_cast<float>(this->get_parameter("algorithm_params.aspect_ratio_threshold").as_double());
     algorithm_params_.bracket_width = static_cast<float>(this->get_parameter("algorithm_params.bracket_width").as_double()); // 支架宽度（米）
+    algorithm_params_.algorithm = this->get_parameter("algorithm_params.algorithm").as_string(); // "ceres" / "ceres_restrain" / "epnp"
 
 
 

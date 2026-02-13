@@ -7,7 +7,7 @@ camera_matrix:
   rows: 3
   cols: 3
   dt: d
-  data:
+  data: &id001
   - 1018.7242828106
   - 0.0
   - 953.0586800398
@@ -40,16 +40,7 @@ distortion_coefficients:
 rectification_matrix:
   rows: 3
   cols: 3
-  data:
-  - 1018.7242828106
-  - 0.0
-  - 953.0586800398
-  - 0.0
-  - 1018.7523820183
-  - 537.4889747781
-  - 0.0
-  - 0.0
-  - 1.0
+  data: *id001
 projection_matrix:
   rows: 3
   cols: 4

@@ -9,8 +9,8 @@ pixel_format: "yuyv2bgra"     # yuyv输出原始提图像用于标定，yuyv2bgr
 av_device_format: "YUV422P"
 is_distortion_correction: true
 resize: 1
-image_width: 1920
-image_height: 1080
+image_width: 3840
+image_height: 2160
 camera_name: "test_camera"
 camera_info_url: file://${ROS_HOME}/../pix/parameter/sensor_kit/robobus_sensor_kit_description/intrinsic_parameters/camera0_params.yaml
 brightness: -1

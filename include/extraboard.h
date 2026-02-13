@@ -39,6 +39,8 @@ struct BBox
 
 struct AlgorithmParams
 {
+    std::string algorithm; // 算法选择
+    
     Eigen::Vector4f min_point; // 点云过滤最小范围
     Eigen::Vector4f max_point; // 点云过滤最大范围
     float min_size; // 最小尺寸（米）
