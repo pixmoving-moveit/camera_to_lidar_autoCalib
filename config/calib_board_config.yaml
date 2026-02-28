@@ -2,19 +2,19 @@
 calib_board_node:
   ros__parameters:
     # 点云文件路径
-    data_path: "/home/pix/code/calibration_ws/src/calibBoard/data"
+    data_path: "/home/ipc/pix/calibration_new/calib_data/data"
     
     # 模板图像文件路径
-    template_image_path: "/home/pix/code/calibration_ws/src/calibBoard/data/template.png"
+    template_image_path: "/home/ipc/pix/calibration_new/calib_data/config/template.png"
 
     # 缓存文件路径
-    cache_directory: "/home/pix/code/calibration_ws/src/calibBoard/cache"
+    cache_directory: "/home/ipc/pix/calibration_new/calib_data/cache"
 
     # 外参文件路径
-    parameters_path: "/home/pix/code/calibration_ws/src/calibBoard/config"
+    parameters_path: "/home/ipc/pix/calibration_new/calib_data/config"
 
     # 外参文件路径（初始值）
-    parameters_path_gt: "/home/pix/code/calibration_ws/src/calibBoard/config/sensor_kit_calibration_gt.yaml"
+    parameters_path_gt: "/home/ipc/pix/calibration_new/calib_data/config/sensor_kit_calibration_gt.yaml"
 
     # 发布频率 (Hz)
     publish_frequency: 1.0
@@ -30,9 +30,13 @@ calib_board_node:
     frame_id: "base_link"
 
      # 待标定相机ID列表
-    camera_list: [0, 1, 2, 3, 4, 5, 6]
-    camera_name_list: ["camera_front_4k", "camera_front", "camera_rear", "camera_front_left", "camera_front_right", "camera_rear_left", "camera_rear_right"]
-    calib_camera_list: [6]
+    # camera_list: [0, 1, 2, 3, 4, 5, 6]
+    # camera_name_list: ["camera_front_4k", "camera_front", "camera_rear", "camera_front_left", "camera_front_right", "camera_rear_left", "camera_rear_right"]
+    # calib_camera_list: [6]
+
+    camera_list: [0, 1, 2, 3, 4, 5]
+    camera_name_list: ["camera_front_4k", "camera_rear", "camera_front_left", "camera_front_right", "camera_rear_left", "camera_rear_right"]
+    calib_camera_list: [5]
 
     # 是否输出用于yolo训练的图像素材
     export_yolo_data: 0
@@ -61,5 +65,9 @@ calib_board_node:
       marker_length: 0.51  # 单个Aruco标记的边长（米）
       marker_scale: 2.2     # 外围框放大比例
       marker_shift: 0.15     # 外围框平移比例
-      marker_num: 4
-      marker_order: [5, 1, 4, 2]  # ArUco标记顺序
+      marker_num: 5
+      # marker_order: [10, 2, 16, 5, 6,]  # ArUco标记顺序0
+      # marker_order: [5, 6, 10, 2, 16]  # ArUco标记顺序1
+      marker_order: [5, 6, 14, 1, 8]  # ArUco标记顺序2,5
+      # marker_order: [11, 7, 9, 10, 2]  # ArUco标记顺序3,4
+

@@ -10,6 +10,8 @@
 #include <yaml-cpp/yaml.h>
 #include <eigen3/Eigen/Dense>
 
+typedef Eigen::Matrix<double, 6, 1> Vector6d;
+
 class Utils {
 private:
     std::string current_path;
@@ -18,7 +20,7 @@ private:
     YAML::Node extrinsic_params;
     YAML::Node robobus_params;
 
-    std::map<std::string, Eigen::Vector3d> relativePositionMap; // camera_key -> relative_position
+    std::map<std::string, Vector6d> relativePositionMap; // camera_key -> relative_position
     std::map<std::string, std::string> camera_key_map;          // camera_key -> extrinsic_params_key
     std::vector<std::string> gt_sensors_to_front;
     std::vector<std::string> gt_sensors_to_rear;
@@ -86,7 +88,7 @@ public:
         try {
             robobus_params = config_node["origin"];
             // 测试计算
-            Eigen::Vector3d relative = getRelativePositionGT(robobus_params, "lidar_front_top", "camera_front");
+            Vector6d relative = getRelativePositionGT(robobus_params, "lidar_front_top", "camera_front");
             std::cout << "Sample relative GT: " << relative.transpose() << std::endl;
         } catch (const YAML::Exception& e) {
             std::cerr << "YAML GT Error: " << e.what() << std::endl;
@@ -114,7 +116,7 @@ public:
     }
 
     // --- 核心计算逻辑：获取相对位置 ---
-    Eigen::Vector3d getRelativePositionGT(const YAML::Node& origin_node, const std::string& from_sensor, const std::string& to_sensor) {
+    Vector6d getRelativePositionGT(const YAML::Node& origin_node, const std::string& from_sensor, const std::string& to_sensor) {
         if (!origin_node[from_sensor] || !origin_node[to_sensor]) {
             throw std::runtime_error("Sensor key missing in origin_node: " + from_sensor + " or " + to_sensor);
         }
@@ -122,21 +124,24 @@ public:
         const auto& from = origin_node[from_sensor];
         const auto& to = origin_node[to_sensor];
 
-        Eigen::Vector3d relative;
+        Vector6d relative;
         relative << from["x"].as<double>() - to["x"].as<double>(),
                     from["y"].as<double>() - to["y"].as<double>(),
-                    from["z"].as<double>() - to["z"].as<double>();
+                    from["z"].as<double>() - to["z"].as<double>(),
+                    from["roll"].as<double>() - to["roll"].as<double>(),
+                    from["pitch"].as<double>() - to["pitch"].as<double>(),
+                    from["yaw"].as<double>() - to["yaw"].as<double>();
         return relative;
     }
 
     // --- 获取 Sensor Kit 内部偏移 ---
-    Eigen::Vector3d getSensorRelativePosition(const YAML::Node& origin_node, const std::string& to_sensor) 
+    Vector6d getSensorRelativePosition(const YAML::Node& origin_node, const std::string& to_sensor) 
     {
         if (!origin_node["sensor_kit_base_link"][to_sensor]) {
             throw std::runtime_error("Missing in sensor_kit_base_link: " + to_sensor);
         }
         const auto& node = origin_node["sensor_kit_base_link"][to_sensor];
-        return Eigen::Vector3d(node["x"].as<double>(), node["y"].as<double>(), node["z"].as<double>());
+        return Vector6d(node["x"].as<double>(), node["y"].as<double>(), node["z"].as<double>(), 0.0, 0.0, 0.0);
     }
 
     // --- 保存结果到 YAML ---
@@ -145,14 +150,14 @@ public:
         for (auto& [sensor_name, pos] : relativePositionMap) {
             std::string key = camera_key_map[sensor_name];
             
-            sensor_kit[key]["x"] = pos.x();
-            sensor_kit[key]["y"] = pos.y();
-            sensor_kit[key]["z"] = pos.z();
+            sensor_kit[key]["x"] = pos[0];
+            sensor_kit[key]["y"] = pos[1];
+            sensor_kit[key]["z"] = pos[2];
             
             // 保留原始的姿态角 (Roll, Pitch, Yaw)
-            sensor_kit[key]["roll"]  = robobus_params[sensor_name]["roll"].as<double>();
-            sensor_kit[key]["pitch"] = robobus_params[sensor_name]["pitch"].as<double>();
-            sensor_kit[key]["yaw"]   = robobus_params[sensor_name]["yaw"].as<double>();
+            sensor_kit[key]["roll"]  = pos[3];
+            sensor_kit[key]["pitch"] = pos[4];
+            sensor_kit[key]["yaw"]   = pos[5];
         }
 
         config_node["sensor_kit_base_link"] = sensor_kit;

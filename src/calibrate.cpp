@@ -138,6 +138,49 @@ IntrParams CalibFunc::read_intrinsicParams(const std::string intrinsics_path)
             throw std::runtime_error("相机内参格式错误：缺少rows、cols或data字段");
         }
     }
+
+    // 定义一个辅助 Lambda 函数，用于从 JSON/YAML 节点解析 3x3 矩阵
+    auto parse3x3Matrix = [](const auto& node, const std::string& name) -> cv::Mat {
+        if (!node["rows"] || !node["cols"] || !node["data"]) {
+            throw std::runtime_error("相机矩阵 " + name + " 格式错误：缺少必要字段");
+        }
+        int rows = node["rows"].template as<int>();
+        int cols = node["cols"].template as<int>();
+        if (rows != 3 || cols != 3) {
+            throw std::runtime_error("相机矩阵 " + name + " 必须是 3x3 的");
+        }
+        
+        cv::Mat mat(3, 3, CV_64F);
+        auto data = node["data"];
+        for (int i = 0; i < 9; ++i) {
+            mat.at<double>(i / 3, i % 3) = data[i].template as<double>();
+        }
+        return mat;
+    };
+
+    // --- 主逻辑开始 ---
+    if (intrinsics["rectification_matrix"]) 
+    {
+        // 1. 首先解析修正后的内参矩阵
+        cv::Mat rect_K = parse3x3Matrix(intrinsics["rectification_matrix"], "rectification_matrix");
+
+        // 2. 检查是否为单位阵 (Identity Matrix)
+        // cv::Mat::eye 生成单位阵，两者不相等元素的个数为 0 则表示是单位阵
+        bool is_identity = (cv::countNonZero(rect_K != cv::Mat::eye(3, 3, CV_64F)) == 0);
+
+        if (is_identity && intrinsics["camera_matrix"]) 
+        {
+            // 如果是单位阵，则转而尝试读取原始的 camera_matrix
+            std::cout << "该相机的 rectification_matrix 是单位阵，尝试读取 camera_matrix 作为内参" << std::endl;
+            intr_params.K_ = parse3x3Matrix(intrinsics["camera_matrix"], "camera_matrix");
+        } 
+        else 
+        {
+            // 否则（非单位阵，或者没有 camera_matrix 备份），使用 rectification_matrix
+            intr_params.K_ = rect_K;
+        }
+    }
+
     intr_params.dist_ = cv::Mat::zeros(5, 1, CV_64F);    //已经去畸变
 
     return intr_params;
@@ -468,8 +511,20 @@ bool CalibFunc::RefineFromMounting(const std::vector<cv::Point2f>& pts_2d,
         out_tvec.at<double>(i) = t_ptr[i];
     }
 
-    std::cout << "Optimization Complete. RMSE: " << std::sqrt(summary.final_cost / pts_2d.size()) << std::endl;
-    return summary.termination_type == ceres::TerminationType::CONVERGENCE;
+    double rmse = std::sqrt(summary.final_cost / pts_2d.size());
+
+    // --- 对比输出逻辑 ---
+    spdlog::info("========== Calibration Refinement Report ==========");
+    spdlog::info("1. Optimization Status: {}", summary.BriefReport());
+    spdlog::info("2. Reprojection RMSE: {:.4f} pixels", rmse);
+       
+    spdlog::info("\n");
+    spdlog::info("3. Final Extrinsic (LiDAR to Camera):");
+    spdlog::info("   rvec: [{:.4f}, {:.4f}, {:.4f}]", out_rvec.at<double>(0), out_rvec.at<double>(1), out_rvec.at<double>(2));
+    spdlog::info("   tvec: [{:.4f}, {:.4f}, {:.4f}]", out_tvec.at<double>(0), out_tvec.at<double>(1), out_tvec.at<double>(2));
+    spdlog::info("==================================================\n");
+
+    return (summary.termination_type == ceres::TerminationType::CONVERGENCE && rmse < 4.0) || rmse < 3.0;
 }
 
 bool CalibFunc:: RefineWithPhysicalConstraints(const std::vector<cv::Point2f>& pts_2d,
@@ -552,7 +607,10 @@ bool CalibFunc:: RefineWithPhysicalConstraints(const std::vector<cv::Point2f>& p
     spdlog::info("   rvec: [{:.4f}, {:.4f}, {:.4f}]", out_rvec.at<double>(0), out_rvec.at<double>(1), out_rvec.at<double>(2));
     spdlog::info("   tvec: [{:.4f}, {:.4f}, {:.4f}]", out_tvec.at<double>(0), out_tvec.at<double>(1), out_tvec.at<double>(2));
     spdlog::info("==================================================\n");
-    return (summary.termination_type == ceres::TerminationType::CONVERGENCE && rmse < 4.0);
+    
+    if(summary.termination_type == ceres::TerminationType::CONVERGENCE && rmse < 5.0)	return true;
+    if(rmse < 4.0)	return true;
+    return false;
 }
 
 IntrParams CalibFunc::getIntrParams(const int cam_id)
